@@ -16,17 +16,21 @@ public class User {
     @Id
     private String id;
 
+    //  UNIQUE INDEX 1: Username
     @Indexed(unique = true)
     private String username;
 
-    private String email; // Internal use only, never exposed in profile
+    //  UNIQUE INDEX 2: Email (Added this!)
+    @Indexed(unique = true)
+    private String email;
 
     private ProfileData profile;
 
-    // Read-only for this service (updated by worker/events)
+    // Stats (Read-only for users)
     private Integer followersCount = 0;
     private Integer followingCount = 0;
 
+    // TIMESTAMPS (Auto-managed by Spring)
     @CreatedDate
     private Instant createdAt;
 

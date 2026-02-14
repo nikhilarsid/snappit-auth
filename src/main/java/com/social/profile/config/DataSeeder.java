@@ -20,8 +20,8 @@ public class DataSeeder implements CommandLineRunner {
         // Create a dummy user "vikrant" if not exists
         if (userRepository.findByUsername("vikrant").isEmpty()) {
             User user = new User();
-            user.setId("user-123"); // Fixed ID for testing
             user.setUsername("vikrant");
+            user.setEmail("vikrant@example.com");
 
             ProfileData profile = new ProfileData();
             profile.setName("vikrant kumar");
@@ -34,7 +34,7 @@ public class DataSeeder implements CommandLineRunner {
             user.setUpdatedAt(Instant.now());
 
             userRepository.save(user);
-            System.out.println(" Dummy User 'vikrant' created!");
+            System.out.println(" Dummy User 'vikrant' created with Email!");
         }
     }
 }
