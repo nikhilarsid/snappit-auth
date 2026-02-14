@@ -1,0 +1,466 @@
+👤 PROFILE MODULE — DEEP LLD
+📌 Responsibilities (Reconfirmed)
+Profile module owns:
+Fetch profile
+
+
+Update own profile
+It does NOT:
+Update followersCount / followingCount directly
+
+
+Write notifications directly
+
+
+Update feeds
+
+🧱 MODULE STRUCTURE
+ProfileController
+ProfileService
+UserRepository
+FollowRepository
+EventRepository
+
+
+
+2️⃣ UPDATE OWN PROFILE
+Endpoint
+PATCH /api/v1/profile
+
+Allowed Fields
+name
+
+
+bio
+
+
+avatarUrl
+
+
+Never:
+username
+
+
+email
+
+
+followersCount
+
+
+followingCount
+
+
+
+Service Flow
+Validate fields
+
+
+Update user document
+
+
+Return updated profile
+
+
+No event needed.
+ No transaction needed.
+ Single document update.
+
+
+
+1️⃣ GET PROFILE
+Endpoint
+GET /api/v1/profile/:username
+
+Access Rules
+Viewer → Target
+Allowed Data
+Self
+Full profile
+Approved follower
+Full profile
+Not following
+Limited profile
+
+
+
+
+1️⃣ GET PROFILE
+Endpoint
+GET /api/v1/profile/:username
+
+
+🔹 CONTROLLER
+async getProfile(req, res) {
+    const viewerId = req.user?.userId || null
+    const { username } = req.params
+
+    const profile = await profileService.getProfile({
+        viewerId,
+        username
+    })
+
+    return res.status(200).json(profile)
+}
+
+Controller Responsibilities:
+Extract params
+
+
+Extract optional viewer
+
+
+Call service
+
+
+Return response
+
+
+No DB logic here.
+
+🔹 SERVICE
+async getProfile({ viewerId, username }) {
+    const targetUser = await userRepository.findByUsername(username)
+DEPENDENCY: followservice.checkFollowStatusService()// from the followservice
+    if (!targetUser) {
+        throw new NotFoundError("USER_NOT_FOUND")
+    }
+
+    let isFollowing = false
+    let canViewFullProfile = false
+
+    if (viewerId) {
+
+        if (viewerId.toString() === targetUser._id.toString()) {
+            canViewFullProfile = true
+        } else {
+
+            const relation = await followRepository.findRelation(
+                viewerId,
+                targetUser._id
+            )
+
+            if (relation?.status === "approved") {
+                isFollowing = true
+                canViewFullProfile = true
+            }
+        }
+    }
+
+    return buildProfileResponse(targetUser, canViewFullProfile, isFollowing)
+}
+
+
+🔹 buildProfileResponse()
+function buildProfileResponse(user, canViewFull, isFollowing) {
+    return {
+        username: user.username,
+        avatarUrl: user.profile.avatarUrl,
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
+        ...(canViewFull && {
+            bio: user.profile.bio
+        }),
+        ...(isFollowing && {
+            isFollowing: true
+        })
+    }
+}
+
+If not following:
+isFollowing: false
+
+(Explicit boolean is better than undefined.)
+
+🔹 REPOSITORY
+UserRepository
+async findByUsername(username) {
+    return Users.findOne({ username })
+}
+
+Indexed:
+{ username: 1 } UNIQUE
+
+
+FollowRepository
+async findRelation(followerId, followingId) {
+    return Follows.findOne({
+        followerId,
+        followingId
+    })
+}
+
+Indexed:
+{ followerId: 1, followingId: 1 } UNIQUE
+
+
+2️⃣ UPDATE OWN PROFILE
+Endpoint
+PATCH /api/v1/profile
+
+
+🔹 CONTROLLER
+async updateProfile(req, res) {
+    const userId = req.user.userId
+
+    const updated = await profileService.updateProfile({
+        userId,
+        updateData: req.body
+    })
+
+    return res.status(200).json(updated)
+}
+
+
+🔹 SERVICE
+async updateProfile({ userId, updateData }) {
+
+    const allowedFields = ["name", "bio", "avatarUrl"]
+
+    const sanitized = pick(updateData, allowedFields)
+
+    if (Object.keys(sanitized).length === 0) {
+        throw new ValidationError("NO_VALID_FIELDS")
+    }
+
+    const updatedUser = await userRepository.updateProfile(
+        userId,
+        sanitized
+    )
+
+    return {
+        username: updatedUser.username,
+        avatarUrl: updatedUser.profile.avatarUrl,
+        bio: updatedUser.profile.bio
+    }
+}
+
+
+🔹 REPOSITORY
+async updateProfile(userId, fields) {
+    return Users.findByIdAndUpdate(
+        userId,
+        {
+            $set: {
+                "profile.name": fields.name,
+                "profile.bio": fields.bio,
+                "profile.avatarUrl": fields.avatarUrl,
+                updatedAt: new Date()
+            }
+        },
+        { new: true }
+    )
+}
+
+Single document update.
+ No transaction needed.
+
+
+
+🧠 Final Profile Response Example
+{
+  "username": "kshitij",
+  "avatarUrl": "...",
+  "bio": "...",
+  "followersCount": 10,
+  "followingCount": 4,
+  "isFollowing": true
+}
+
+
+
+👤 PROFILE SERVICE — API CONTRACT
+
+1️⃣ GET PROFILE
+Endpoint
+GET /api/v1/profile/:username
+
+🔐 Auth Requirement
+Optional
+ (If you want public profiles)
+
+✅ SUCCESS — Public Profile
+📥 Request
+GET /api/v1/profile/kshitij
+Host: api.example.com
+Accept: application/json
+
+
+📤 Response — 200 OK
+{
+  "username": "kshitij",
+  "avatarUrl": "https://cdn.example.com/avatar.jpg",
+  "bio": "Building scalable systems.",
+  "followersCount": 120,
+  "followingCount": 45,
+  "createdAt": "2026-02-13T10:00:00Z"
+followStatus:Following/Pending/Notfollowing
+isownProfile:BOOLEAN
+}
+
+
+❌ EDGE CASES
+
+1️⃣ User Not Found
+📥 Request
+GET /api/v1/profile/unknownuser
+Host: api.example.com
+
+📤 Response
+ Status: 404 Not Found
+{
+  "error": "USER_NOT_FOUND",
+  "message": "Profile does not exist"
+}
+
+
+2️⃣ Invalid Username Format
+If username fails validation (e.g., contains illegal characters)
+📤 Response
+ Status: 400 Bad Request
+{
+  "error": "INVALID_USERNAME",
+  "message": "Username format is invalid"
+}
+
+
+3️⃣ Internal Error
+📤 Response
+ Status: 500 Internal Server Error
+{
+  "error": "INTERNAL_SERVER_ERROR"
+}
+
+
+2️⃣ UPDATE PROFILE
+Endpoint
+PATCH /api/v1/profile
+
+🔐 Auth Required
+Yes
+ Must pass valid JWT in cookie.
+
+✅ SUCCESS
+📥 Request
+PATCH /api/v1/profile
+Host: api.example.com
+Content-Type: application/json
+Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+{
+  "name": "Kshitij Singh",
+  "bio": "Distributed systems enthusiast",
+  "avatarUrl": "https://cdn.example.com/new-avatar.jpg"
+}
+
+
+📤 Response — 200 OK
+{
+  "username": "kshitij",
+  "avatarUrl": "https://cdn.example.com/new-avatar.jpg",
+  "bio": "Distributed systems enthusiast",
+  "name": "Kshitij Singh",
+  "updatedAt": "2026-02-13T11:00:00Z"
+}
+
+
+❌ EDGE CASES
+
+1️⃣ Missing Auth Token
+📥 Request
+PATCH /api/v1/profile
+Content-Type: application/json
+
+📤 Response
+ Status: 401 Unauthorized
+{
+  "error": "UNAUTHORIZED",
+  "message": "Authentication required"
+}
+
+
+2️⃣ Invalid / Expired JWT
+📤 Response
+ Status: 401 Unauthorized
+{
+  "error": "INVALID_TOKEN",
+  "message": "Token expired or invalid"
+}
+
+
+3️⃣ No Valid Fields Provided
+User sends empty body or illegal fields.
+📥 Request
+{
+  "username": "hacker",
+  "followersCount": 9999
+}
+
+📤 Response
+ Status: 400 Bad Request
+{
+  "error": "NO_VALID_FIELDS",
+  "message": "No updatable fields provided"
+}
+
+
+4️⃣ Field Validation Error
+Example: Bio too long.
+📤 Response
+ Status: 400 Bad Request
+{
+  "error": "VALIDATION_ERROR",
+  "message": "Bio must be under 160 characters"
+}
+
+
+5️⃣ Attempt to Update Restricted Fields
+Example:
+{
+  "email": "hack@evil.com"
+}
+
+📤 Response
+ Status: 403 Forbidden
+{
+  "error": "FORBIDDEN_FIELD",
+  "message": "This field cannot be updated"
+}
+
+
+6️⃣ User Not Found (rare edge case)
+If user deleted but token still valid.
+📤 Response
+ Status: 404 Not Found
+{
+  "error": "USER_NOT_FOUND"
+}
+
+
+7️⃣ Internal Error
+Status: 500
+{
+  "error": "INTERNAL_SERVER_ERROR"
+}
+
+
+🔒 What Profile Service Does NOT Handle
+Follow state
+
+
+isFollowing
+
+
+Follower list
+
+
+Following list
+
+
+Notifications
+
+
+Auth validation logic (middleware handles)
+
+
+Count increments (worker handles)
+
