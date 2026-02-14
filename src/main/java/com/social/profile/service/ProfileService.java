@@ -5,16 +5,41 @@ import com.social.profile.dto.UpdateProfileRequest;
 import com.social.profile.entity.User;
 import com.social.profile.exception.UserNotFoundException;
 import com.social.profile.repository.UserRepository;
-import com.social.profile.service.client.FollowServiceClient;
+import com.social.profile.service.client.FollowServiceClient; // Ensure this exists or remove if mocking
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
 
     private final UserRepository userRepository;
-    private final FollowServiceClient followServiceClient;
+    // private final FollowServiceClient followServiceClient; // Uncomment when Client is ready
+
+    // ✅ NEW: Search Logic
+    public List<ProfileResponse> searchProfiles(String query) {
+        // 1. Call the custom repository method (Atlas Search)
+        List<User> searchResults = userRepository.searchUsers(query);
+
+        // 2. Map User entities to simple ProfileResponse DTOs
+        return searchResults.stream()
+                .map(user -> ProfileResponse.builder()
+                        .id(user.getId()) // Ensure DTO has ID field
+                        .username(user.getUsername())
+                        .name(user.getProfile().getName())
+                        .avatarUrl(user.getProfile().getAvatarUrl())
+                        .bio(user.getProfile().getBio())
+                        .followersCount(user.getFollowersCount())
+                        // For search results, we usually don't calculate "isFollowing"
+                        // for every single result to keep it fast.
+                        .isFollowing(false)
+                        .isOwnProfile(false)
+                        .build())
+                .collect(Collectors.toList());
+    }
 
     // 1️⃣ GET PROFILE
     public ProfileResponse getProfile(String username, String viewerId) {
@@ -26,22 +51,19 @@ public class ProfileService {
 
         // Determine Follow Status if not looking at own profile
         if (!isOwnProfile && viewerId != null) {
-            isFollowing = followServiceClient.isFollowing(viewerId, targetUser.getId());
+            // isFollowing = followServiceClient.isFollowing(viewerId, targetUser.getId());
+            // TODO: Uncomment above line when FollowService is connected
         }
 
-        // Access Control: Can view full profile?
-        // (Assuming public profiles for now, but you can limit bio here if needed)
-        boolean canViewFullProfile = isOwnProfile || isFollowing;
-
         return ProfileResponse.builder()
+                .id(targetUser.getId())
                 .username(targetUser.getUsername())
                 .avatarUrl(targetUser.getProfile().getAvatarUrl())
                 .name(targetUser.getProfile().getName())
                 .followersCount(targetUser.getFollowersCount())
                 .followingCount(targetUser.getFollowingCount())
-                // Only show Bio if allowed (example logic)
                 .bio(targetUser.getProfile().getBio())
-                .isFollowing(isOwnProfile ? null : isFollowing)
+                .isFollowing(isFollowing)
                 .isOwnProfile(isOwnProfile)
                 .build();
     }
@@ -59,11 +81,13 @@ public class ProfileService {
         User updatedUser = userRepository.save(user);
 
         return ProfileResponse.builder()
+                .id(updatedUser.getId())
                 .username(updatedUser.getUsername())
                 .avatarUrl(updatedUser.getProfile().getAvatarUrl())
                 .name(updatedUser.getProfile().getName())
                 .bio(updatedUser.getProfile().getBio())
-                .updatedAt(updatedUser.getUpdatedAt()) // Ensure Entity has field or handle in DTO
+                .isOwnProfile(true) // Always true for update response
+                //.updatedAt(updatedUser.getUpdatedAt()) // Ensure DTO supports this
                 .build();
     }
 }

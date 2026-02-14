@@ -8,12 +8,21 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/profile")
 @RequiredArgsConstructor
 public class ProfileController {
 
     private final ProfileService profileService;
+
+    //  NEW: Search Endpoint
+    // Usage: GET /api/v1/profile/search?query=vikrant
+    @GetMapping("/search")
+    public ResponseEntity<List<ProfileResponse>> searchProfiles(@RequestParam String query) {
+        return ResponseEntity.ok(profileService.searchProfiles(query));
+    }
 
     //  GET /api/v1/profile/:username
     @GetMapping("/{username}")

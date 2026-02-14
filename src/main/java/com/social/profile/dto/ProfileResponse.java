@@ -10,6 +10,7 @@ import java.time.Instant;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL) // Don't send null fields (like Bio if restricted)
 public class ProfileResponse {
+    private String id;
     private String username;
     private String avatarUrl;
     private String name;
