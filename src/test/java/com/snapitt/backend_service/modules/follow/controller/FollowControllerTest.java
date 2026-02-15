@@ -1,6 +1,7 @@
 package com.snapitt.backend_service.modules.follow.controller;
 
 import com.snapitt.backend_service.modules.follow.service.FollowService;
+import com.snapitt.backend_service.modules.follow.dto.response.PaginatedFollowersResponse;
 import com.snapitt.backend_service.modules.user.model.UserEntity;
 import com.snapitt.backend_service.security.UserPrincipal;
 import org.junit.jupiter.api.AfterEach;
@@ -86,9 +87,7 @@ public class FollowControllerTest {
 
     @Test
     public void getFollowers_authenticated_returnsData() throws Exception {
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("data", java.util.Collections.emptyList());
-        resp.put("nextCursor", null);
+        PaginatedFollowersResponse resp = new PaginatedFollowersResponse(java.util.Collections.emptyList(), null);
         when(followService.getFollowers("alice", 20, null, "u1")).thenReturn(resp);
 
         mockMvc.perform(get("/api/v1/follow/alice/followers?limit=20")

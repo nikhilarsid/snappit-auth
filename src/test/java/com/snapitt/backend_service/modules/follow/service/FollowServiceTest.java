@@ -1,6 +1,7 @@
 package com.snapitt.backend_service.modules.follow.service;
 
 import com.snapitt.backend_service.modules.event.service.EventService;
+import com.snapitt.backend_service.modules.follow.dto.response.PaginatedFollowersResponse;
 import com.snapitt.backend_service.modules.follow.repository.FollowRepository;
 import com.snapitt.backend_service.modules.follow.model.FollowEntity;
 import com.snapitt.backend_service.modules.follow.model.FollowStatus;
@@ -46,9 +47,9 @@ public class FollowServiceTest {
         when(followRepository.findByFollowingIdAndStatusOrderByIdDesc(org.mockito.ArgumentMatchers.eq(user.getId()), org.mockito.ArgumentMatchers.eq(FollowStatus.approved), org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
             .thenReturn(Collections.emptyList());
 
-        Map<String, Object> result = followService.getFollowers(username, 20, null, "viewer");
+        PaginatedFollowersResponse result = followService.getFollowers(username, 20, null, "viewer");
 
-        assertEquals(null, result.get("nextCursor"));
-        assertEquals(Collections.emptyList(), result.get("data"));
+        assertEquals(null, result.getNextCursor());
+        assertEquals(Collections.emptyList(), result.getData());
     }
 }

@@ -396,6 +396,40 @@ public class PostService {
     }
 
     /**
+     * Get multiple posts by IDs (batch fetch for feed operations)
+     * Used by FeedService to retrieve post details for feed items.
+     * Returns posts in order of input IDs for cursor pagination consistency.
+     *
+     * @param postIds List of post IDs to fetch
+     * @param viewerId Viewer's user ID (for canDelete flag)
+     * @return List of PostResponse objects in same order as input IDs
+     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
+     */
+    public List<PostResponse> getPostsByIds(List<String> postIds, String viewerId) {
+        try {
+            if (postIds == null || postIds.isEmpty()) {
+                return List.of();
+            }
+
+            // Fetch all posts in single query
+            List<PostEntity> posts = postRepository.findAllById(postIds);
+
+            // Map to responses and preserve input order
+            Map<String, PostEntity> postMap = posts.stream()
+                    .collect(Collectors.toMap(PostEntity::getId, p -> p));
+
+            return postIds.stream()
+                    .map(postMap::get)
+                    .filter(post -> post != null)  // Skip deleted/missing posts
+                    .map(post -> mapToResponse(post, viewerId))
+                    .collect(Collectors.toList());
+        } catch (Exception ex) {
+            logger.error("Error fetching posts by IDs: {}", postIds, ex);
+            throw new AuthException("An error occurred while retrieving posts", "INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Map PostEntity to PostResponse with viewer context
      * @param post PostEntity to map
      * @param viewerId Viewer's user ID (optional, null if not authenticated)

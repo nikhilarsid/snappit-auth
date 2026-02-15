@@ -328,6 +328,56 @@ public class StoryService {
     }
 
     /**
+     * Get latest active story from a creator (for feed operations)
+     * Queries the latest story that is:
+     * - Not deleted (isDeleted = false)
+     * - Not expired (expiresAt > now)
+     *
+     * @param creatorId Creator's user ID
+     * @param viewerId Viewer's user ID (for canDelete flag)
+     * @return StoryResponse of latest story, or null if no active story
+     * @throws AuthException (FORBIDDEN, 403) - Viewer doesn't have access to creator's stories
+     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
+     */
+    public StoryResponse getLatestStoryByCreator(String creatorId, String viewerId) {
+        try {
+            Instant now = Instant.now();
+
+            // Query latest story from creator that is not deleted and not expired
+            // MongoDB query: { authorId: creatorId, isDeleted: false, expiresAt: { $gt: now } }
+            // Sort by createdAt descending to get the latest one
+            List<StoryEntity> stories = storyRepository.findByAuthorIdAndIsDeletedFalseOrderByCreatedAtDesc(
+                    creatorId,
+                    PageRequest.of(0, 1)
+            );
+
+            if (stories.isEmpty()) {
+                return null;
+            }
+
+            StoryEntity latestStory = stories.get(0);
+
+            // Check if story is expired
+            if (latestStory.getExpiresAt() != null && latestStory.getExpiresAt().isBefore(now)) {
+                return null;  // Story expired
+            }
+
+            // Check access (note: feed records only include approved followers)
+            // This is a safety check - feed records should already be filtered
+            if (!hasAccessToStory(creatorId, viewerId)) {
+                throw new AuthException("You don't have access to view this story", "FORBIDDEN", HttpStatus.FORBIDDEN);
+            }
+
+            return mapToResponse(latestStory, viewerId);
+        } catch (AuthException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            logger.error("Error retrieving latest story for creator: {}", creatorId, ex);
+            throw new AuthException("An error occurred while retrieving story", "INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Map StoryEntity to StoryResponse with viewer context
      * @param story StoryEntity to map
      * @param viewerId Viewer's user ID (optional, null if not authenticated)
