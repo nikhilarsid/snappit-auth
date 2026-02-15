@@ -1,6 +1,7 @@
 package com.snapitt.backend_service.modules.user.repository;
 
 import com.snapitt.backend_service.modules.user.model.UserEntity;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 

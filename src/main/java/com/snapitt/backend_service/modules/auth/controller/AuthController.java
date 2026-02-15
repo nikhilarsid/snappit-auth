@@ -9,6 +9,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     @PostMapping("/signup")
     public ResponseEntity<UserEntity> signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
@@ -66,11 +69,17 @@ public class AuthController {
     }
 
     private void setCookie(HttpServletResponse response, String token, int maxAge) {
-        Cookie cookie = new Cookie("token", token);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true); // Always true for production
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAge);
-        response.addCookie(cookie);
+        String value = token == null ? "" : token;
+        try {
+            Cookie cookie = new Cookie("token", value);
+            cookie.setHttpOnly(true);
+            cookie.setSecure(true); // Always true for production
+            cookie.setPath("/");
+            cookie.setMaxAge(maxAge);
+            response.addCookie(cookie);
+        } catch (IllegalArgumentException iae) {
+            log.warn("Failed to set cookie: {}", iae.getMessage());
+            throw new com.snapitt.backend_service.modules.auth.common.exception.AuthException("Failed to set cookie", "COOKIE_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }

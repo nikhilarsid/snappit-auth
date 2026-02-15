@@ -120,6 +120,40 @@ Common response envelope: endpoints return plain JSON objects (no wrapping metad
   - Body: same shape as Get followers (list of user DTOs + nextCursor)
 - Errors: same as Get followers
 
+### 5b) Get my followers (paginated)
+- Method: GET
+- URL: `/api/v1/follow/my/followers`
+- Query parameters:
+  - `limit` (int, optional, default=20) — items per page (min 1, max 50)
+  - `cursor` (string, optional) — continuation cursor (opaque)
+- Auth: required — the server uses the user id from the provided JWT (no `username` path param)
+- Success: 200 OK
+  - Body: same shape as Get followers (list of follower DTOs + `nextCursor`)
+- Errors:
+  - 400 Bad Request — invalid query params
+  - 401 Unauthorized — missing/invalid token
+  - 500 Internal Server Error
+
+  Notes:
+  - This endpoint is a convenience shortcut that returns the followers for the authenticated user using the user id resolved from the JWT. Response may include `isFollowingBack` flags computed relative to the authenticated user.
+
+### 6b) Get my following (paginated)
+- Method: GET
+- URL: `/api/v1/follow/my/following`
+- Query parameters:
+  - `limit` (int, optional, default=20) — items per page (min 1, max 50)
+  - `cursor` (string, optional) — continuation cursor (opaque)
+- Auth: required — the server uses the user id from the provided JWT (no `username` path param)
+- Success: 200 OK
+  - Body: same shape as Get following (list of following DTOs + `nextCursor`)
+- Errors:
+  - 400 Bad Request — invalid query params
+  - 401 Unauthorized — missing/invalid token
+  - 500 Internal Server Error
+
+  Notes:
+  - This endpoint is a convenience shortcut that returns the following list for the authenticated user using the user id resolved from the JWT.
+
 ---
 
 ## DTOs (response shape)

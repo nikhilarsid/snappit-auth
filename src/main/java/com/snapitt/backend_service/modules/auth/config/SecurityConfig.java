@@ -52,7 +52,14 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Allow your frontend URL explicitly
-        configuration.setAllowedOrigins(List.of("http://localhost:3000")); 
+        configuration.setAllowedOrigins(List.of("http://localhost:3000",
+                "http://10.65.1.110:3000",  // Your IP (for others' frontends)
+                "http://10.65.1.110:8080","/v1/auth/**",
+                "/v3/api-docs/**",    // Allow OpenAPI JSON
+                "/swagger-ui/**",     // Allow Swagger UI static files
+                "/swagger-ui.html"    // Allow Swagger UI entry point
+          ));
+
         
         // Allow all standard HTTP methods
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
