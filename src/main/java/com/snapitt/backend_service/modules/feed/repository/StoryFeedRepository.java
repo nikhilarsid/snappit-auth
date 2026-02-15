@@ -32,4 +32,13 @@ public interface StoryFeedRepository extends MongoRepository<StoryFeedEntity, St
      * @return Story creators after cursor, sorted by seen then latestStoryAt descending
      */
     List<StoryFeedEntity> findByUserIdAndIsDeletedFalseAndIdLessThanOrderBySeenAscLatestStoryAtDesc(String userId, String cursor, Pageable pageable);
+
+    /**
+     * Delete all stories from a specific creator from user's feed
+     * Used when user unfollows someone - removes all their stories from the feed
+     * @param userId The user whose feed should be cleaned
+     * @param creatorId The story creator whose entries should be removed
+     * @return Number of feed entries deleted
+     */
+    long deleteByUserIdAndCreatorId(String userId, String creatorId);
 }

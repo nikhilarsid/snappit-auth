@@ -30,4 +30,21 @@ public interface PostFeedRepository extends MongoRepository<PostFeedEntity, Stri
      * @return Posts after cursor, sorted by seen then createdAt descending
      */
     List<PostFeedEntity> findByUserIdAndIdLessThanOrderBySeenAscCreatedAtDesc(String userId, String cursor, Pageable pageable);
+
+    /**
+     * Delete all posts from a specific author from user's feed
+     * Used when user unfollows someone - removes all their posts from the feed
+     * @param userId The user whose feed should be cleaned
+     * @param authorId The author whose posts should be removed
+     * @return Number of feed entries deleted
+     */
+    long deleteByUserIdAndAuthorId(String userId, String authorId);
+
+    /**
+     * Delete a specific post from all users' feeds
+     * Used when a post is deleted - removes it from all feed collections
+     * @param postId The post ID to delete
+     * @return Number of feed entries deleted
+     */
+    long deleteByPostId(String postId);
 }
