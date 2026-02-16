@@ -334,7 +334,12 @@ public class CommentService {
                 });
             }
 
-            // Note: No event emitted for delete (as per requirements)
+            // Note: Emit COMMENT_DELETED event to decrement post commentCount
+            eventService.emitEvent(EventType.COMMENT_DELETED, commentId, Map.of(
+                "commentId", commentId,
+                "postId", comment.getPostId(),
+                "authorId", comment.getAuthorId()
+            ));
         } catch (AuthException ex) {
             throw ex;
         } catch (Exception ex) {

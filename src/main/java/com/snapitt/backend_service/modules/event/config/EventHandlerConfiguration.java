@@ -24,6 +24,7 @@ public class EventHandlerConfiguration {
     private final PostLikedEventHandler postLikedHandler;
     private final PostUnlikedEventHandler postUnlikedHandler;
     private final CommentCreatedEventHandler commentCreatedHandler;
+    private final CommentDeletedEventHandler commentDeletedHandler;
     private final FollowAcceptedEventHandler followAcceptedHandler;
     private final FollowRequestedEventHandler followRequestedHandler;
     private final FollowRejectedEventHandler followRejectedHandler;
@@ -41,6 +42,7 @@ public class EventHandlerConfiguration {
         eventProcessor.registerHandler(EventType.POST_LIKED, postLikedHandler);
         eventProcessor.registerHandler(EventType.POST_UNLIKED, postUnlikedHandler);
         eventProcessor.registerHandler(EventType.COMMENT_CREATED, commentCreatedHandler);
+        eventProcessor.registerHandler(EventType.COMMENT_DELETED, commentDeletedHandler);
         eventProcessor.registerHandler(EventType.FOLLOW_ACCEPTED, followAcceptedHandler);
         eventProcessor.registerHandler(EventType.FOLLOW_REQUESTED, followRequestedHandler);
         eventProcessor.registerHandler(EventType.FOLLOW_REJECTED, followRejectedHandler);
