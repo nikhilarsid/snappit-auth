@@ -1,0 +1,647 @@
+📦 FOLLOW SERVICE — DEEP LLD
+
+📁 COLLECTION (unchanged)
+follows {
+  _id: ObjectId,
+  followerId: ObjectId,
+  followingId: ObjectId,
+  status: "pending" | "approved" | "rejected",
+  createdAt: ISODate,
+  respondedAt: ISODate
+}
+
+Indexes:
+{ followerId: 1, status: 1 }
+{ followingId: 1, status: 1 }
+{ followerId: 1, followingId: 1 } UNIQUE
+
+Immutable meaning:
+We never update followerId / followingId
+
+
+We only update status
+
+
+
+🧱 MODULE STRUCTURE
+FollowController
+FollowService
+FollowRepository
+EventRepository
+
+Dependencies:
+ProfileService
+
+
+1️⃣ CREATE FOLLOW REQUEST
+Endpoint
+POST /api/v1/follow/:username
+
+
+🔹 CONTROLLER
+async createFollow(req, res) {
+    const followerId = req.user.userId
+    const { username } = req.params
+
+    await followService.createFollowRequest({
+        followerId,
+        targetUsername: username
+    })
+
+    return res.status(200).json({
+        message: "FOLLOW_REQUEST_SENT"
+    })
+}
+
+
+🔹 SERVICE
+async createFollowRequest({ followerId, targetUsername }) {
+
+    // 1️⃣ Resolve username → ObjectId (Profile dependency)
+    const targetUser = await profileService.getUserByUsername(targetUsername)
+    if (!targetUser) throw new NotFoundError("USER_NOT_FOUND")
+
+    if (followerId.toString() === targetUser._id.toString()) {
+        throw new ValidationError("CANNOT_FOLLOW_SELF")
+    }
+
+    // 2️⃣ Check existing relation
+    const existing = await followRepository.findRelation(
+        followerId,
+        targetUser._id
+    )
+
+    if (existing?.status === "approved")
+        throw new ConflictError("ALREADY_FOLLOWING")
+
+    if (existing?.status === "pending")
+        throw new ConflictError("REQUEST_ALREADY_SENT")
+
+    const session = await startSession()
+    session.startTransaction()
+
+    try {
+
+        if (existing?.status === "rejected") {
+            await followRepository.updateStatus(
+                existing._id,
+                "pending",
+                session
+            )
+        } else {
+            await followRepository.create({
+                followerId,
+                followingId: targetUser._id,
+                status: "pending",
+                createdAt: new Date(),
+                respondedAt: null
+            }, session)
+        }
+
+        await eventRepository.create({
+            type: "FOLLOW_REQUESTED",
+            aggregateId: targetUser._id,
+            payload: {
+                followerId,
+                followingId: targetUser._id
+            }
+        }, session)
+
+        await session.commitTransaction()
+
+    } catch (err) {
+        await session.abortTransaction()
+        throw err
+    }
+}
+
+
+2️⃣ APPROVE FOLLOW
+Endpoint
+POST /api/v1/follow/:username/approve
+
+
+🔹 CONTROLLER
+async approveFollow(req, res) {
+    const currentUserId = req.user.userId
+    const { username } = req.params
+
+    await followService.approveFollow({
+        currentUserId,
+        followerUsername: username
+    })
+
+    return res.json({ message: "FOLLOW_APPROVED" })
+}
+
+
+🔹 SERVICE
+async approveFollow({ currentUserId, followerUsername }) {
+
+    const follower = await profileService.getUserByUsername(followerUsername)
+    if (!follower) throw new NotFoundError()
+
+    const relation = await followRepository.findRelation(
+        follower._id,
+        currentUserId
+    )
+
+    if (!relation || relation.status !== "pending")
+        throw new NotFoundError("NO_PENDING_REQUEST")
+
+    const session = await startSession()
+    session.startTransaction()
+
+    try {
+
+        await followRepository.updateStatus(
+            relation._id,
+            "approved",
+            session
+        )
+
+        await eventRepository.create({
+            type: "FOLLOW_ACCEPTED",
+            aggregateId: relation._id,
+            payload: {
+                followerId: follower._id,
+                followingId: currentUserId
+            }
+        }, session)
+
+        await session.commitTransaction()
+
+    } catch (err) {
+        await session.abortTransaction()
+        throw err
+    }
+}
+
+
+3️⃣ REJECT FOLLOW
+Same structure, only:
+status = "rejected"
+event = FOLLOW_REJECTED
+
+
+4️⃣ PAGINATED FOLLOWERS
+Endpoint
+GET /api/v1/follow/:username/followers?limit=20&cursor=...
+
+
+🔹 CONTROLLER
+async getFollowers(req, res) {
+    const { username } = req.params
+    const { limit = 20, cursor } = req.query
+
+    const result = await followService.getFollowers({
+        username,
+        limit: Number(limit),
+        cursor
+    })
+
+    return res.json(result)
+}
+
+
+🔹 SERVICE
+async getFollowers({ username, limit, cursor }) {
+
+    // 1️⃣ Username → ObjectId
+    const user = await profileService.getUserByUsername(username)
+    if (!user) throw new NotFoundError()
+
+    // 2️⃣ Query follows collection
+    const relations = await followRepository.getFollowers(
+        user._id,
+        limit,
+        cursor
+    )
+
+    const followerIds = relations.map(r => r.followerId)
+
+    // 3️⃣ ObjectIds → usernames (Profile dependency)
+    const users = await profileService.getUsernamesByIds(followerIds)
+
+    return {
+        data: users,
+        nextCursor: relations.length ? relations[relations.length - 1]._id : null
+    }
+}
+
+
+🔹 REPOSITORY
+async getFollowers(userId, limit, cursor) {
+
+    const query = {
+        followingId: userId,
+        status: "approved"
+    }
+
+    if (cursor) {
+        query._id = { $lt: new ObjectId(cursor) }
+    }
+
+    return Follows.find(query)
+        .sort({ _id: -1 })
+        .limit(limit)
+}
+
+Cursor-based pagination using _id.
+Efficient because:
+_id is indexed
+
+
+followingId + status index exists
+
+
+
+5️⃣ PAGINATED FOLLOWINGS
+Identical structure.
+Query:
+{
+  followerId: userId,
+  status: "approved"
+}
+
+Return:
+followingId → usernames
+
+
+🔁 DATA FLOW (FOLLOWERS FETCH)
+Controller
+   ↓
+FollowService
+   ↓
+ProfileService (username → ObjectId)
+   ↓
+FollowRepository (query DB)
+   ↓
+ProfileService (ObjectIds → usernames)
+   ↓
+Controller → Response
+
+Profile remains source of truth for:
+Username resolution
+
+
+User data
+
+
+Follow remains source of truth for:
+Graph edges
+
+
+
+📦 Sample Followers Response
+{
+  "data": [
+      { "username": "alice" },
+      { "username": "bob" }
+  ],
+  "nextCursor": "65fa9c..."
+}
+
+
+JWT Payload assumption:
+{
+  "userId": "64fa12ab98cd112233445566",
+  "username": "kshitij",
+  "iat": ...,
+  "exp": ...
+}
+
+We assume middleware attaches:
+req.user = { userId }
+
+
+🔵 1️⃣ CREATE FOLLOW REQUEST
+Endpoint
+POST /api/v1/follow/:username
+
+
+✅ Success Case
+Request
+POST /api/v1/follow/alice
+Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+or
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Authenticated User:
+userId = 64fa12ab98cd112233445566
+
+
+Response
+200 OK
+{
+  "message": "FOLLOW_REQUEST_SENT"
+}
+
+
+❌ Edge Cases
+🔹 401 — No Token
+401 Unauthorized
+{
+  "error": "UNAUTHORIZED"
+}
+
+
+🔹 404 — Target User Not Found
+POST /api/v1/follow/nonexistent
+
+404 Not Found
+{
+  "error": "USER_NOT_FOUND"
+}
+
+
+🔹 400 — Self Follow
+POST /api/v1/follow/kshitij
+
+400 Bad Request
+{
+  "error": "CANNOT_FOLLOW_SELF"
+}
+
+
+🔹 409 — Already Following
+409 Conflict
+{
+  "error": "ALREADY_FOLLOWING"
+}
+
+
+🔹 409 — Request Already Pending
+409 Conflict
+{
+  "error": "REQUEST_ALREADY_SENT"
+}
+
+
+🔹 Re-follow After Rejected
+Existing status = rejected
+System updates to pending.
+200 OK
+{
+  "message": "FOLLOW_REQUEST_SENT"
+}
+
+
+🔵 2️⃣ APPROVE FOLLOW
+Endpoint
+POST /api/v1/follow/:username/approve
+
+
+✅ Success
+Request
+POST /api/v1/follow/bob/approve
+Cookie: token=JWT
+
+Current user:
+userId = aliceId
+
+
+Response
+200 OK
+{
+  "message": "FOLLOW_APPROVED"
+}
+
+
+❌ Edge Cases
+🔹 404 — Follower Username Not Found
+404 Not Found
+{
+  "error": "USER_NOT_FOUND"
+}
+
+
+🔹 404 — No Pending Request Exists
+Cases:
+No relation
+
+
+Relation exists but status = approved
+
+
+Relation exists but status = rejected
+
+
+404 Not Found
+{
+  "error": "NO_PENDING_REQUEST"
+}
+
+
+🔹 401 — No Token
+401 Unauthorized
+{
+  "error": "UNAUTHORIZED"
+}
+
+
+🔵 3️⃣ REJECT FOLLOW
+Endpoint
+POST /api/v1/follow/:username/reject
+
+
+✅ Success
+200 OK
+{
+  "message": "FOLLOW_REJECTED"
+}
+
+
+❌ Edge Cases
+Same as approve:
+404 NO_PENDING_REQUEST
+401 UNAUTHORIZED
+404 USER_NOT_FOUND
+
+
+🔵 4️⃣ GET FOLLOWERS (PAGINATED)
+Endpoint
+GET /api/v1/follow/:username/followers?limit=20&cursor=65fa9c...
+
+Authentication required.
+
+✅ Success — First Page
+Request
+GET /api/v1/follow/alice/followers?limit=2
+Cookie: token=JWT
+
+
+Response
+200 OK
+{
+  "data": [
+    { "username": "bob" },
+    { "username": "charlie" }
+  ],
+  "nextCursor": "65fa9c99abccddeeff112233"
+}
+
+
+✅ Success — Next Page
+GET /api/v1/follow/alice/followers?limit=2&cursor=65fa9c99abccddeeff112233
+
+200 OK
+{
+  "data": [
+    { "username": "daniel" }
+  ],
+  "nextCursor": null
+}
+
+
+❌ Edge Cases
+🔹 404 — Username Not Found
+404 Not Found
+{
+  "error": "USER_NOT_FOUND"
+}
+
+
+🔹 400 — Invalid Cursor
+Malformed ObjectId.
+400 Bad Request
+{
+  "error": "INVALID_CURSOR"
+}
+
+
+🔹 400 — Invalid Limit
+GET ?limit=10000
+
+If you enforce max limit = 50:
+400 Bad Request
+{
+  "error": "LIMIT_EXCEEDED"
+}
+
+
+🔹 401 — No Token
+401 Unauthorized
+{
+  "error": "UNAUTHORIZED"
+}
+
+
+🔹 Edge Case — No Followers
+200 OK
+{
+  "data": [],
+  "nextCursor": null
+}
+
+
+🔵 5️⃣ GET FOLLOWINGS (PAGINATED)
+Endpoint
+GET /api/v1/follow/:username/following?limit=20&cursor=...
+
+
+✅ Success
+200 OK
+{
+  "data": [
+    { "username": "alice" },
+    { "username": "bob" }
+  ],
+  "nextCursor": "65fa88..."
+}
+
+
+❌ Edge Cases
+Same as followers:
+USER_NOT_FOUND
+
+
+INVALID_CURSOR
+
+
+LIMIT_EXCEEDED
+
+
+UNAUTHORIZED
+
+
+
+🔵 6️⃣ UNFOLLOW
+Endpoint
+DELETE /api/v1/follow/:username
+
+
+✅ Success
+200 OK
+{
+  "message": "UNFOLLOWED"
+}
+
+
+❌ Edge Cases
+🔹 404 — Not Following
+If:
+No relation
+
+
+Relation exists but status != approved
+
+
+404 Not Found
+{
+  "error": "NOT_FOLLOWING"
+}
+
+
+🔹 404 — User Not Found
+404 USER_NOT_FOUND
+
+
+🔹 400 — Self Unfollow
+Technically impossible unless system is corrupted, but:
+400 CANNOT_UNFOLLOW_SELF
+
+
+🔹 401 — No Token
+401 Unauthorized
+{
+  "error": "UNAUTHORIZED"
+}
+
+
+🔐 Security Edge Cases Considered
+✔ Duplicate follow prevention
+ ✔ Self follow prevention
+ ✔ Pending replay protection
+ ✔ Reject replay protection
+ ✔ Approve replay protection
+ ✔ Cursor tampering
+ ✔ Limit abuse protection
+ ✔ Missing token
+ ✔ Expired JWT
+
+📦 Final Endpoint Matrix
+Endpoint
+Auth Required
+Emits Event
+POST /follow/:username
+✅
+FOLLOW_REQUESTED
+POST /follow/:username/approve
+✅
+FOLLOW_ACCEPTED
+POST /follow/:username/reject
+✅
+FOLLOW_REJECTED
+DELETE /follow/:username
+✅
+UNFOLLOWED
+GET followers
+✅
+❌
+GET following
+✅
+❌
+
+

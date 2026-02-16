@@ -1,0 +1,125 @@
+
+[1;33m========================================[0m
+[1;33mSETUP: Authentication[0m
+[1;33m========================================[0m
+
+Logging in User 1 (if.kshitij)...
+[0;32m✓ User 1 logged in[0m
+Logging in User 2 (hhoehunterr)...
+[0;32m✓ User 2 logged in[0m
+Note: User 2 is an approved follower of User 1 (verified from Follow module tests)
+
+[1;33m========================================[0m
+[1;33mTEST SECTION: Create Post (POST /api/v1/posts)[0m
+[1;33m========================================[0m
+
+Test 3.1: Create post with caption
+[0;31m✗ Test 1 FAILED[0m: Create post with caption (Expected: 201, Got: 403)
+[0;31m✗ Test 2 FAILED[0m: Response contains post ID (No response received)
+Test 3.2: Create post without caption
+[0;31m✗ Test 3 FAILED[0m: Create post without caption (Expected: 201, Got: 403)
+[0;31m✗ Test 4 FAILED[0m: New post has 0 likes (No response received)
+Test 3.3: Missing mediaUrl (error)
+[0;31m✗ Test 5 FAILED[0m: Missing mediaUrl returns 400 (Expected: 400, Got: 403)
+Test 3.4: Empty mediaUrl (error)
+[0;31m✗ Test 6 FAILED[0m: Empty mediaUrl returns 400 (Expected: 400, Got: 403)
+Test 3.5: mediaUrl exceeds 2048 chars (error)
+[0;31m✗ Test 7 FAILED[0m: mediaUrl > 2048 chars returns 400 (Expected: 400, Got: 403)
+Test 3.6: Caption exceeds 500 chars (error)
+[0;31m✗ Test 8 FAILED[0m: caption > 500 chars returns 400 (Expected: 400, Got: 403)
+Test 3.7: Create post without authentication (error)
+[0;31m✗ Test 9 FAILED[0m: Unauthenticated create returns 401 (Expected: 401, Got: 403)
+Test 3.8: Invalid JSON format (error)
+[0;31m✗ Test 10 FAILED[0m: Invalid JSON returns 400 (Expected: 400, Got: 403)
+
+[1;33m========================================[0m
+[1;33mTEST SECTION: Get Single Post (GET /api/v1/posts/{postId})[0m
+[1;33m========================================[0m
+
+Test 1.1: Get post as author
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 1.2: Get post as approved follower
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 1.3: Post not found (error)
+[0;31m✗ Test 11 FAILED[0m: Non-existent post returns 404 (Expected: 404, Got: 403)
+Test 1.4: Get post without authentication (error)
+[0;31m✗ Skipping: POST_ID1 not set[0m
+
+[1;33m========================================[0m
+[1;33mTEST SECTION: Get User Posts (GET /api/v1/posts/user/{username})[0m
+[1;33m========================================[0m
+
+Test 2.1: Get own posts
+[0;31m✗ Test 12 FAILED[0m: Get own posts succeeds (Expected: 200, Got: 403)
+[0;31m✗ Test 13 FAILED[0m: Response contains data array (No response received)
+Test 2.2: Get posts with limit=5
+[0;31m✗ Test 14 FAILED[0m: Custom limit succeeds (Expected: 200, Got: 403)
+Test 2.3: Get posts as approved follower
+[0;31m✗ Test 15 FAILED[0m: Approved follower can view posts (Expected: 200, Got: 403)
+Test 2.4: Invalid username format (error)
+[0;31m✗ Test 16 FAILED[0m: Invalid username returns 400 (Expected: 400, Got: 403)
+Test 2.5: Username too short (error)
+[0;31m✗ Test 17 FAILED[0m: Short username returns 400 (Expected: 400, Got: 403)
+Test 2.6: User not found (error)
+[0;31m✗ Test 18 FAILED[0m: Non-existent user returns 404 (Expected: 404, Got: 403)
+Test 2.7: Get all posts without authentication (error)
+[0;32m✓ Test 19 PASSED[0m: Unauthenticated view-all returns 403 (Status: 403)
+Test 2.8: Limit too high (error)
+[0;31m✗ Test 20 FAILED[0m: Limit > 50 returns 400 (Expected: 400, Got: 403)
+Test 2.9: Limit zero (error)
+[0;31m✗ Test 21 FAILED[0m: Limit = 0 returns 400 (Expected: 400, Got: 403)
+
+[1;33m========================================[0m
+[1;33mTEST SECTION: Like Post (POST /api/v1/posts/{postId}/like)[0m
+[1;33m========================================[0m
+
+Test 5.1: Like post
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 5.2: Like same post twice (error)
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 5.3: Different user likes same post
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 5.4: Like non-existent post (error)
+[0;31m✗ Test 22 FAILED[0m: Like non-existent post returns 404 (Expected: 404, Got: 403)
+Test 5.5: Like without authentication (error)
+[0;31m✗ Skipping: POST_ID1 not set[0m
+
+[1;33m========================================[0m
+[1;33mTEST SECTION: Unlike Post (DELETE /api/v1/posts/{postId}/like)[0m
+[1;33m========================================[0m
+
+Test 6.1: Unlike post
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 6.2: Unlike same post twice (error)
+[0;31m✗ Skipping: POST_ID1 not set[0m
+Test 6.3: Unlike non-existent post (error)
+[0;31m✗ Test 23 FAILED[0m: Unlike non-existent post returns 404 (Expected: 404, Got: 403)
+Test 6.4: Unlike without authentication (error)
+[0;31m✗ Skipping: POST_ID2 not set[0m
+
+[1;33m========================================[0m
+[1;33mTEST SECTION: Delete Post (DELETE /api/v1/posts/{postId})[0m
+[1;33m========================================[0m
+
+Creating test post for deletion...
+Test 4.1: Delete own post
+[0;31m✗ Skipping: DELETE_TEST_ID not set[0m
+Test 4.2: Delete non-existent post (error)
+[0;31m✗ Test 24 FAILED[0m: Delete non-existent post returns 404 (Expected: 404, Got: 403)
+Test 4.3: Delete without authentication (error)
+[0;31m✗ Test 25 FAILED[0m: Unauthenticated delete returns 401 (Expected: 401, Got: 403)
+Test 4.4: Delete another user's post (error)
+[0;31m✗ Skipping: POST_ID1 not set[0m
+
+[1;33m========================================[0m
+[1;33mTEST SUMMARY[0m
+[1;33m========================================[0m
+
+Total Tests: 25
+[0;32mPassed: 1[0m
+[0;31mFailed: 24[0m
+Pass Rate: [0;32m4%[0m
+
+[1;33mCleaning up test files...[0m
+
+[0;31m✗ Some tests failed[0m

@@ -1,0 +1,37 @@
+> Task :clean
+
+> Task :compileJava FAILED
+/Users/kshitijsingh/MyProjects/snappit-auth/src/main/java/com/snapitt/backend_service/modules/event/config/EventHandlerConfiguration.java:10: error: cannot find symbol
+import javax.annotation.PostConstruct;
+                       ^
+  symbol:   class PostConstruct
+  location: package javax.annotation
+/Users/kshitijsingh/MyProjects/snappit-auth/src/main/java/com/snapitt/backend_service/modules/event/adapter/EventCDCAdapter.java:16: error: cannot find symbol
+import javax.annotation.PostConstruct;
+                       ^
+  symbol:   class PostConstruct
+  location: package javax.annotation
+/Users/kshitijsingh/MyProjects/snappit-auth/src/main/java/com/snapitt/backend_service/modules/event/config/EventHandlerConfiguration.java:31: error: cannot find symbol
+    @PostConstruct
+     ^
+  symbol:   class PostConstruct
+  location: class EventHandlerConfiguration
+/Users/kshitijsingh/MyProjects/snappit-auth/src/main/java/com/snapitt/backend_service/modules/event/adapter/EventCDCAdapter.java:58: error: cannot find symbol
+    @PostConstruct
+     ^
+  symbol:   class PostConstruct
+  location: class EventCDCAdapter
+4 errors
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --info option to get more log output.
+> Run with --scan to get full insights.
+
+BUILD FAILED in 2s
+2 actionable tasks: 2 executed
