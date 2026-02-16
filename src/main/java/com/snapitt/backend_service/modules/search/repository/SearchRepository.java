@@ -9,42 +9,18 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * SearchRepository - Uses MongoDB Atlas Search ($search aggregation) to find users
- * by username or profile.name using the "user_search_index" autocomplete index.
- *
- * Atlas Search Index definition (on "users" collection):
- * {
- *   "mappings": {
- *     "dynamic": false,
- *     "fields": {
- *       "username": { "type": "autocomplete", "tokenization": "edgeGram", "minGrams": 3, "maxGrams": 15 },
- *       "profile": {
- *         "type": "document",
- *         "fields": {
- *           "name": { "type": "autocomplete", "tokenization": "edgeGram", "minGrams": 3, "maxGrams": 15 }
- *         }
- *       }
- *     }
- *   }
- * }
- */
 @Repository
 @RequiredArgsConstructor
 public class SearchRepository {
 
     private final MongoTemplate mongoTemplate;
 
-    /**
-     * Search users using Atlas Search autocomplete on username and profile.name
-     */
     public List<UserEntity> searchUsers(String query, int limit) {
         String trimmed = query.trim();
         if (trimmed.length() < 2) {
             return List.of();
         }
 
-        // Build the $search stage using Atlas Search autocomplete
         Document searchStage = new Document("$search", new Document()
                 .append("index", "user_search_index")
                 .append("compound", new Document()
@@ -92,16 +68,12 @@ public class SearchRepository {
                 .into(new ArrayList<>());
     }
 
-    /**
-     * Fallback: regex search when Atlas Search index is not available
-     */
     public List<UserEntity> searchUsersFallback(String query, int limit) {
         String trimmed = query.trim();
         if (trimmed.length() < 2) {
             return List.of();
         }
 
-        // Escape regex special characters
         String escaped = trimmed.replaceAll("[\\\\^$.|?*+()\\[\\]{}]", "\\\\$0");
         String pattern = "(?i)" + escaped;
 

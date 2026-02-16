@@ -20,15 +20,6 @@ public class SearchService {
     private final SearchRepository searchRepository;
     private final FollowRepository followRepository;
 
-    /**
-     * Search for users by username or name.
-     * Tries Atlas Search first, falls back to regex if Atlas Search index is unavailable.
-     *
-     * @param query   The search query (min 2 characters)
-     * @param limit   Max results to return
-     * @param viewerId The ID of the authenticated user (nullable)
-     * @return List of matching profiles with follow status
-     */
     public List<SearchResultDTO> search(String query, int limit, String viewerId) {
         if (query == null || query.trim().length() < 2) {
             return List.of();

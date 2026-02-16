@@ -34,8 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final GoogleAuthService googleAuthService;
-    // private final EmailService emailService; // Uncomment when EmailService is ready
-
+    
     @Transactional
     public AuthResponse signup(SignupRequest request) {
         if (!ValidationUtils.isValidPassword(request.getPassword())) {
@@ -51,14 +50,13 @@ public class AuthService {
             throw new AuthException("Email already registered", "EMAIL_ALREADY_EXISTS", HttpStatus.CONFLICT);
         }
 
-        // ✅ FIXED: Safely building profile with empty strings instead of nulls
         UserEntity user = UserEntity.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .profile(UserEntity.Profile.builder()
                         .name(request.getName())
-                        .bio("")       // Safe default
-                        .avatarUrl("") // Safe default
+                        .bio("")       
+                        .avatarUrl("") 
                         .build())
                 .followersCount(0L)
                 .followingCount(0L)
@@ -106,7 +104,7 @@ public class AuthService {
 
         if (existingUser.isPresent()) {
             user = existingUser.get();
-            // Link Account if missing
+            
             Optional<AuthEntity> googleAuth = authRepository.findByUserIdAndType(user.getId(), AuthType.GOOGLE);
             if (googleAuth.isEmpty()) {
                 AuthEntity newAuth = AuthEntity.builder()
@@ -117,14 +115,14 @@ public class AuthService {
                 authRepository.save(newAuth);
             }
         } else {
-            // New User
+            
             user = UserEntity.builder()
                     .email(email)
                     .username(email.split("@")[0] + new Random().nextInt(1000))
                     .profile(UserEntity.Profile.builder()
                             .name(name)
                             .avatarUrl(picture)
-                            .bio("") // Safe default
+                            .bio("") 
                             .build())
                     .followersCount(0L)
                     .followingCount(0L)
@@ -155,10 +153,6 @@ public class AuthService {
                 .build();
         otpRepository.save(otp);
         
-        // TODO: Uncomment this when you implement EmailService
-        // emailService.sendOtp(user.getEmail(), code);
-        
-        // For development, print to console:
         System.out.println("OTP for " + user.getEmail() + ": " + code);
     }
 
@@ -180,7 +174,6 @@ public class AuthService {
             throw new AuthException("Password is too weak", "WEAK_PASSWORD", HttpStatus.BAD_REQUEST);
         }
 
-        // Create VerifyOtpRequest using setters
         VerifyOtpRequest verifyRequest = new VerifyOtpRequest();
         verifyRequest.setEmail(request.getEmail());
         verifyRequest.setCode(request.getCode());
@@ -204,7 +197,6 @@ public class AuthService {
             authRepository.save(auth);
         }
 
-        // Clean up OTP
         var otp = otpRepository.findTopByEmailOrderByExpiresAtDesc(request.getEmail());
         otp.ifPresent(otpEntity -> otpRepository.deleteById(otpEntity.getId()));
     }

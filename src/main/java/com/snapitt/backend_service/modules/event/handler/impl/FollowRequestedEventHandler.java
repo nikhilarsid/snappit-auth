@@ -25,7 +25,7 @@ public class FollowRequestedEventHandler implements EventHandler {
         String followingId = (String) event.getPayload().get("followingId");
 
         try {
-            // Create FOLLOW_REQUEST notification for target user
+            
             NotificationEntity notification = NotificationEntity.builder()
                     .targetUserId(followingId)
                     .actorId(followerId)

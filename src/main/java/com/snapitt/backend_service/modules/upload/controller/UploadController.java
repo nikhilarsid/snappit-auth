@@ -20,15 +20,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * UploadController - Handles file uploads (images)
- *
- * POST /api/v1/upload
- * - Accepts multipart/form-data with a "file" part
- * - Validates file type (JPEG, PNG, GIF, WebP) and size (max 10MB)
- * - Saves to configured upload directory
- * - Returns { "url": "/uploads/<uuid>.<ext>" }
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/upload")
@@ -38,7 +29,7 @@ public class UploadController {
             "image/jpeg", "image/png", "image/gif", "image/webp"
     );
 
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; 
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
@@ -47,13 +38,11 @@ public class UploadController {
     public ResponseEntity<Map<String, String>> uploadFile(
             @RequestParam("file") MultipartFile file) {
 
-        // Auth check
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal)) {
             throw new AuthException("Authentication required", "UNAUTHORIZED", HttpStatus.UNAUTHORIZED);
         }
 
-        // Validate file
         if (file.isEmpty()) {
             throw new AuthException("File is empty", "VALIDATION_ERROR", HttpStatus.BAD_REQUEST);
         }
@@ -72,13 +61,12 @@ public class UploadController {
         }
 
         try {
-            // Create upload directory if it doesn't exist
+            
             Path uploadPath = Paths.get(uploadDir).toAbsolutePath();
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
             }
 
-            // Generate unique filename preserving original extension
             String originalFilename = file.getOriginalFilename();
             String extension = "";
             if (originalFilename != null && originalFilename.contains(".")) {
@@ -86,7 +74,6 @@ public class UploadController {
             }
             String filename = UUID.randomUUID() + extension;
 
-            // Save file
             Path filePath = uploadPath.resolve(filename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 

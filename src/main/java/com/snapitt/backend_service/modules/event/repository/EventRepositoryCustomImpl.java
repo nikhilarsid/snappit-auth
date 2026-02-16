@@ -13,20 +13,12 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 import java.util.Optional;
 
-/**
- * Implementation of EventRepositoryCustom using MongoTemplate.
- * Handles atomic operations for event claiming and status updates.
- */
 @Repository
 @RequiredArgsConstructor
 public class EventRepositoryCustomImpl implements EventRepositoryCustom {
 
     private final MongoTemplate mongoTemplate;
 
-    /**
-     * Atomically claim a pending event for processing.
-     * Uses MongoDB's findAndModify to ensure atomicity.
-     */
     @Override
     public Optional<EventEntity> claimEvent(String eventId, String workerId, Instant lockedAt) {
         Query query = new Query(Criteria.where("_id").is(eventId)
@@ -46,10 +38,6 @@ public class EventRepositoryCustomImpl implements EventRepositoryCustom {
         return Optional.ofNullable(result);
     }
 
-    /**
-     * Release all stale locks for dead worker recovery.
-     * Returns the number of events released.
-     */
     @Override
     public long releaseStaleLocksForWorkers(Instant staleThreshold) {
         Query query = new Query(Criteria.where("status").is(EventStatus.processing)
@@ -64,9 +52,6 @@ public class EventRepositoryCustomImpl implements EventRepositoryCustom {
         return result.getModifiedCount();
     }
 
-    /**
-     * Mark an event as successfully processed.
-     */
     @Override
     public void markEventDone(String eventId, Instant processedAt) {
         Query query = new Query(Criteria.where("_id").is(eventId));
@@ -80,10 +65,6 @@ public class EventRepositoryCustomImpl implements EventRepositoryCustom {
         mongoTemplate.updateFirst(query, update, EventEntity.class);
     }
 
-    /**
-     * Mark an event as failed or retry it.
-     * Increments retry count and sets new status.
-     */
     @Override
     public void updateEventRetry(String eventId, EventStatus newStatus) {
         Query query = new Query(Criteria.where("_id").is(eventId));

@@ -11,21 +11,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
-/**
- * LikeEntity - Represents a user's like on a post
- *
- * Schema:
- * {
- *   _id: ObjectId,
- *   userId: ObjectId,
- *   postId: ObjectId,
- *   createdAt: ISODate
- * }
- *
- * Indexes:
- * - { userId: 1, postId: 1 } - UNIQUE - Prevent duplicate likes from same user
- * - { postId: 1 }             - Fetch all likes for a post
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -39,7 +24,7 @@ public class LikeEntity {
     @Id
     private String id;
 
-    private String userId;          // User who liked the post
-    private String postId;          // Post being liked
-    private Instant createdAt;      // When the like was created
+    private String userId;          
+    private String postId;          
+    private Instant createdAt;      
 }

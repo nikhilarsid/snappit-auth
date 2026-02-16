@@ -16,19 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/**
- * ProfileService - Handles profile operations and validation
- *
- * Validation Rules:
- * - name: 1-100 characters (optional)
- * - bio: 1-160 characters (optional)
- * - avatarUrl: any length (optional)
- * - Restricted fields: username, email, followersCount, followingCount, createdAt (not updatable)
- *
- * Exception Handling:
- * - AuthException: All business logic exceptions with specific error codes
- * - Generic Exception: Caught and wrapped as INTERNAL_SERVER_ERROR
- */
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
@@ -40,21 +27,11 @@ public class ProfileService {
     private final StoryRepository storyRepository;
     private final StoryFeedRepository storyFeedRepository;
 
-    // Validation constraints
     private static final int MAX_NAME_LENGTH = 100;
     private static final int MAX_BIO_LENGTH = 160;
     private static final int MIN_NAME_LENGTH = 1;
     private static final int MIN_BIO_LENGTH = 1;
 
-    /**
-     * Retrieve user profile by username
-     *
-     * @param viewerId User making the request (optional for public profiles)
-     * @param username Target username
-     * @return ProfileResponse with profile data
-     * @throws AuthException (USER_NOT_FOUND, 404) - User does not exist
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Database or unexpected errors
-     */
     public ProfileResponse getProfile(String viewerId, String username) {
         try {
             UserEntity targetUser = userRepository.findByUsername(username)
@@ -62,26 +39,29 @@ public class ProfileService {
 
             boolean isFollowing = false;
             boolean canViewFullProfile = false;
+            String followStatus = "none";
 
             if (viewerId != null) {
                 if (viewerId.equals(targetUser.getId())) {
                     canViewFullProfile = true;
                 } else {
-                    followRepository.findByFollowerIdAndFollowingId(viewerId, targetUser.getId()).ifPresent(relation -> {
-                        if ("approved".equalsIgnoreCase(String.valueOf(relation.getStatus()))) {
-                            // set flags via side effects on local variables by capturing via final wrapper is inconvenient; instead mutate local via closure not allowed.
-                        }
-                    });
-                    // Simpler: query optional then inspect
                     var relOpt = followRepository.findByFollowerIdAndFollowingId(viewerId, targetUser.getId());
-                    if (relOpt.isPresent() && "approved".equalsIgnoreCase(String.valueOf(relOpt.get().getStatus()))) {
-                        isFollowing = true;
-                        canViewFullProfile = true;
+                    if (relOpt.isPresent()) {
+                        String status = String.valueOf(relOpt.get().getStatus());
+                        if ("approved".equalsIgnoreCase(status)) {
+                            isFollowing = true;
+                            canViewFullProfile = true;
+                            followStatus = "approved";
+                        } else if ("pending".equalsIgnoreCase(status)) {
+                            followStatus = "pending";
+                        }
                     }
                 }
             }
 
-            return buildProfileResponse(targetUser, canViewFullProfile, isFollowing, viewerId);
+            ProfileResponse response = buildProfileResponse(targetUser, canViewFullProfile, isFollowing, viewerId);
+            response.setFollowStatus(followStatus);
+            return response;
         } catch (AuthException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -90,25 +70,15 @@ public class ProfileService {
         }
     }
 
-    // Resolve username -> UserEntity (used by follow service per design)
     public UserEntity getUserByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElse(null);
     }
 
-    // Resolve id -> UserEntity (needed for endpoints that operate directly on userId)
     public UserEntity getUserById(String id) {
         return userRepository.findById(id).orElse(null);
     }
 
-    /**
-     * Retrieve own profile by user ID
-     *
-     * @param userId User ID of the authenticated user
-     * @return ProfileResponse with full profile data
-     * @throws AuthException (USER_NOT_FOUND, 404) - User does not exist
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Database or unexpected errors
-     */
     public ProfileResponse getMyProfile(String userId) {
         try {
             UserEntity user = userRepository.findById(userId)
@@ -123,7 +93,6 @@ public class ProfileService {
         }
     }
 
-    // Given list of ids return minimal user objects (username mapping) used by follow pagination
     public java.util.List<com.snapitt.backend_service.modules.user.model.UserEntity> getUsersByIds(java.util.List<String> ids) {
         return userRepository.findAllById(ids);
     }
@@ -138,15 +107,13 @@ public class ProfileService {
             avatarUrl = user.getProfile().getAvatarUrl();
         }
 
-        // Check if user has active stories (only visible to self or followers)
         boolean hasStory = canViewFull && storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(
                 user.getId(), java.time.Instant.now());
 
-        // Check if viewer has seen this user's stories
         Boolean storySeenByViewer = null;
         if (hasStory && viewerId != null) {
             if (viewerId.equals(user.getId())) {
-                // Own profile — always show grey ring
+                
                 storySeenByViewer = true;
             } else {
                 storySeenByViewer = storyFeedRepository
@@ -172,33 +139,14 @@ public class ProfileService {
         return response;
     }
 
-    /**
-     * Update user profile
-     *
-     * @param userId User ID to update
-     * @param update Update request with new values
-     * @return Updated ProfileResponse
-     * @throws AuthException (NO_VALID_FIELDS, 400) - No updatable fields provided
-     * @throws AuthException (VALIDATION_ERROR, 400) - Field validation failed (size constraints)
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Database or unexpected errors
-     */
     public ProfileResponse updateProfile(String userId, UpdateProfileRequest update) {
         try {
-            // Validate that at least one updatable field is provided
+            
             if ((update.getName() == null || update.getName().isBlank())
                     && (update.getBio() == null || update.getBio().isBlank())
                     && (update.getAvatarUrl() == null || update.getAvatarUrl().isBlank())) {
                 throw new AuthException("No updatable fields provided", "NO_VALID_FIELDS", HttpStatus.BAD_REQUEST);
             }
-
-            // Validate field sizes for non-blank values
-//            if (update.getName() != null && !update.getName().isBlank()) {
-//                validateNameField(update.getName());
-//            }
-//            if (update.getBio() != null && !update.getBio().isBlank()) {
-//                validateBioField(update.getBio());
-//            }// validation already done in dto
 
             UserEntity user = userRepository.findById(userId)
                     .orElseThrow(() -> new AuthException("User not found", "USER_NOT_FOUND", HttpStatus.NOT_FOUND));
@@ -249,31 +197,4 @@ public class ProfileService {
         }
     }
 
-//    /**
-//     * Validates name field length constraints
-//     * @throws AuthException (VALIDATION_ERROR, 400) - Invalid field length
-//     */
-//    private void validateNameField(String name) {
-//        if (name.length() < MIN_NAME_LENGTH || name.length() > MAX_NAME_LENGTH) {
-//            throw new AuthException(
-//                    "Name must be between " + MIN_NAME_LENGTH + " and " + MAX_NAME_LENGTH + " characters",
-//                    "VALIDATION_ERROR",
-//                    HttpStatus.BAD_REQUEST
-//            );
-//        }
-//    }
-//
-//    /**
-//     * Validates bio field length constraints
-//     * @throws AuthException (VALIDATION_ERROR, 400) - Invalid field length
-//     */
-//    private void validateBioField(String bio) {
-//        if (bio.length() < MIN_BIO_LENGTH || bio.length() > MAX_BIO_LENGTH) {
-//            throw new AuthException(
-//                    "Bio must be under " + MAX_BIO_LENGTH + " characters",
-//                    "VALIDATION_ERROR",
-//                    HttpStatus.BAD_REQUEST
-//            );
-//        }
-//    }
 }

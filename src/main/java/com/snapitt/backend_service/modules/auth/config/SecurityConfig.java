@@ -30,50 +30,41 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // 1️⃣ DISABLE CSRF (Fixes 403 on POST requests)
+            
             .csrf(AbstractHttpConfigurer::disable)
-
-            // 2️⃣ ENABLE CORS (Fixes Frontend accessing Backend)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/v1/auth/**").permitAll() // Public endpoints
-                .requestMatchers("/uploads/**").permitAll() // Serve uploaded files
+                .requestMatchers("/v1/auth/**").permitAll() 
+                .requestMatchers("/uploads/**").permitAll() 
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }
-
-    // 3️⃣ DEFINE CORS RULES (The "bridge" between Port 3000 and 8080)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Allow your frontend URL explicitly
+    
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "http://localhost:5173",  // Vite dev server
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
                 "http://10.65.1.136:3000",
                 "http://10.65.1.136:5173",
                 "http://10.65.1.136:5173",
                 "http://10.65.1.136:8080"
-                //"http://10.65.1.136:5173"
-          ));
+               
 
-        
-        // Allow all standard HTTP methods
+          ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         
-        // Allow all headers
         configuration.setAllowedHeaders(List.of("*"));
         
-        // Expose headers that frontend might need
         configuration.setExposedHeaders(List.of("Set-Cookie"));
         
-        // ✅ CRITICAL: Allow credentials (cookies) to be sent
         configuration.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

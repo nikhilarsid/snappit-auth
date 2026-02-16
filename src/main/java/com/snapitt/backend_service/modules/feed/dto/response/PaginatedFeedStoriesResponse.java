@@ -8,16 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * PaginatedFeedStoriesResponse - Response for GET /api/v1/feed/stories
- *
- * Provides cursor-paginated list of stories in user's feed.
- * Ordered by: unseen first (ascending), then latest stories first (descending).
- *
- * Fields:
- * - data: List of FeedStoryDto items
- * - nextCursor: Cursor for next page (null if no more pages)
- */
 @Data
 @Builder
 @NoArgsConstructor

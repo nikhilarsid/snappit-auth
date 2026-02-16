@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.mongodb.config.EnableMongoAuditing;
 
 @SpringBootApplication
-@EnableMongoAuditing // This enables @CreatedDate and @LastModifiedDate
+@EnableMongoAuditing 
 public class SnapittServiceApplication {
 
 	public static void main(String[] args) {

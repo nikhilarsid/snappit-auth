@@ -11,20 +11,10 @@ import java.util.Optional;
 
 public interface EventRepository extends MongoRepository<EventEntity, String>, EventRepositoryCustom {
 
-    /**
-     * Find all pending events waiting for processing.
-     */
     List<EventEntity> findByStatus(EventStatus status);
 
-    /**
-     * Find events that failed after max retries.
-     */
     List<EventEntity> findByStatusAndRetryCountGreaterThan(EventStatus status, Integer retryCount);
 
-    /**
-     * Recover stale events locked by dead workers.
-     * Finds events locked for more than the specified duration.
-     */
     @Query("{ 'status': 'processing', 'lockedAt': { '$lt': ?0 } }")
     List<EventEntity> findStaleLocked(Instant staleThreshold);
 }

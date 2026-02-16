@@ -25,18 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * FollowService - Handles follow operations and business logic
- *
- * Business Logic Validations (not in DTOs):
- * - Self-follow prevention
- * - Existing relationship checks
- * - Status conflict checks
- *
- * Exception Handling:
- * - AuthException: All business logic exceptions
- * - Generic Exception: Caught and wrapped as INTERNAL_SERVER_ERROR
- */
 @Service
 @RequiredArgsConstructor
 public class FollowService {
@@ -47,14 +35,6 @@ public class FollowService {
     private final ProfileService profileService;
     private final EventService eventService;
 
-    /**
-     * Create follow request to target user
-     * @throws AuthException (USER_NOT_FOUND, 404) - Target user not found
-     * @throws AuthException (CANNOT_FOLLOW_SELF, 400) - Cannot follow self
-     * @throws AuthException (ALREADY_FOLLOWING, 409) - Already following
-     * @throws AuthException (REQUEST_ALREADY_SENT, 409) - Request already exists
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
-     */
     @Transactional
     public void createFollowRequest(String followerId, String targetUsername) {
         try {
@@ -90,7 +70,6 @@ public class FollowService {
                 saved = followRepository.save(follow);
             }
 
-            // Emit FOLLOW_REQUESTED event (transactional - allow rollback on failure)
             eventService.emitEvent(EventType.FOLLOW_REQUESTED, targetUser.getId(), Map.of(
                 "followerId", followerId,
                 "followingId", targetUser.getId(),
@@ -104,12 +83,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Approve follow request from user
-     * @throws AuthException (USER_NOT_FOUND, 404) - Requester not found
-     * @throws AuthException (NO_PENDING_REQUEST, 404) - No pending request found
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
-     */
     @Transactional
     public void approveFollow(String currentUserId, String followerUsername) {
         try {
@@ -141,12 +114,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Reject follow request from user
-     * @throws AuthException (USER_NOT_FOUND, 404) - Requester not found
-     * @throws AuthException (NO_PENDING_REQUEST, 404) - No pending request found
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
-     */
     @Transactional
     public void rejectFollow(String currentUserId, String followerUsername) {
         try {
@@ -178,15 +145,8 @@ public class FollowService {
         }
     }
 
-    /**
-     * Unfollow a user
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     * @throws AuthException (CANNOT_UNFOLLOW_SELF, 400) - Cannot unfollow self
-     * @throws AuthException (NOT_FOLLOWING, 404) - Not currently following
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
-     */
     @Transactional
-    public void unfollow(String followerId, String targetUsername) {
+    public String unfollow(String followerId, String targetUsername) {
         try {
             UserEntity targetUser = profileService.getUserByUsername(targetUsername);
             if (targetUser == null) {
@@ -199,18 +159,29 @@ public class FollowService {
 
             var relationOpt = followRepository.findByFollowerIdAndFollowingId(followerId, targetUser.getId());
             var relation = relationOpt.orElse(null);
-            if (relation == null || relation.getStatus() != FollowStatus.approved) {
+            if (relation == null || (relation.getStatus() != FollowStatus.approved && relation.getStatus() != FollowStatus.pending)) {
                 throw new AuthException("Not following", "NOT_FOLLOWING", HttpStatus.NOT_FOUND);
             }
 
+            boolean wasPending = relation.getStatus() == FollowStatus.pending;
             String relationId = relation.getId();
             followRepository.deleteByFollowerIdAndFollowingId(followerId, targetUser.getId());
 
-            eventService.emitEvent(EventType.UNFOLLOWED, targetUser.getId(), Map.of(
-                "followerId", followerId,
-                "followingId", targetUser.getId(),
-                "relationId", relationId
-            ));
+            if (wasPending) {
+                eventService.emitEvent(EventType.FOLLOW_REQUEST_WITHDRAWN, targetUser.getId(), Map.of(
+                    "followerId", followerId,
+                    "followingId", targetUser.getId(),
+                    "relationId", relationId
+                ));
+                return "FOLLOW_REQUEST_WITHDRAWN";
+            } else {
+                eventService.emitEvent(EventType.UNFOLLOWED, targetUser.getId(), Map.of(
+                    "followerId", followerId,
+                    "followingId", targetUser.getId(),
+                    "relationId", relationId
+                ));
+                return "UNFOLLOWED";
+            }
         } catch (AuthException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -219,12 +190,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Get followers of a user (paginated)
-     * @return PaginatedFollowersResponse with follower list and nextCursor
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
-     */
     public PaginatedFollowersResponse getFollowers(String username, int limit, String cursor, String viewerId) {
         try {
             UserEntity user = profileService.getUserByUsername(username);
@@ -281,12 +246,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Get following list of a user (paginated)
-     * @return PaginatedFollowingResponse with following list and nextCursor
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
-     */
     public PaginatedFollowingResponse getFollowing(String username, int limit, String cursor, String viewerId) {
         try {
             UserEntity user = profileService.getUserByUsername(username);
@@ -310,7 +269,6 @@ public class FollowService {
             
             List<UserEntity> users = followingIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followingIds);
 
-            // Check which users the viewer also follows
             final Set<String> viewerFollowingSet;
             if (viewerId != null && !viewerId.isBlank() && !followingIds.isEmpty()) {
                 var viewerRels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followingIds);
@@ -344,9 +302,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Get followers by userId (paginated) - avoids username lookup
-     */
     public PaginatedFollowersResponse getFollowersByUserId(String userId, int limit, String cursor, String viewerId) {
         try {
             UserEntity user = profileService.getUserById(userId);
@@ -403,10 +358,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Get pending follow requests for the authenticated user (paginated)
-     * Returns users who have sent a follow request to this user that is still pending.
-     */
     public PaginatedFollowersResponse getPendingFollowRequests(String userId, int limit, String cursor) {
         try {
             int pageSize = Math.max(1, Math.min(limit, 50));
@@ -429,7 +380,7 @@ public class FollowService {
                     .map(u -> new FollowItemDto(
                             u.getUsername(),
                             u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
-                            false  // not following since this is a pending request
+                            false  
                     ))
                     .collect(Collectors.toList());
 
@@ -447,9 +398,6 @@ public class FollowService {
         }
     }
 
-    /**
-     * Get following by userId (paginated) - avoids username lookup
-     */
     public PaginatedFollowingResponse getFollowingByUserId(String userId, int limit, String cursor, String viewerId) {
         try {
             UserEntity user = profileService.getUserById(userId);
@@ -473,7 +421,6 @@ public class FollowService {
 
             List<UserEntity> users = followingIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followingIds);
 
-            // Check which users the viewer also follows
             final Set<String> viewerFollowingSet;
             if (viewerId != null && !viewerId.isBlank() && !followingIds.isEmpty()) {
                 var viewerRels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followingIds);

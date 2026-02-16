@@ -11,25 +11,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
-/**
- * NotificationEntity - Represents a user notification
- *
- * Schema:
- * {
- *   _id: ObjectId,
- *   targetUserId: ObjectId,               // User who receives the notification
- *   actorId: ObjectId,                    // User who triggered the notification
- *   type: "LIKE" | "COMMENT" | "FOLLOW",  // Notification type
- *   entityId: ObjectId,                   // Post/Comment ID related to notification
- *   seen: boolean,                        // Whether user has seen this notification
- *   createdAt: ISODate                    // Creation timestamp
- * }
- *
- * Indexes:
- * - { targetUserId: 1, seen: 1, createdAt: -1 }   // Fetch notifications for user
- *   Query pattern: find({ targetUserId }).sort({ seen: 1, createdAt: -1 })
- *   Unseen notifications appear first, then sorted by newest first
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -42,10 +23,10 @@ public class NotificationEntity {
     @Id
     private String id;
 
-    private String targetUserId;           // User who receives the notification
-    private String actorId;                // User who triggered the notification
-    private NotificationType type;         // Type of notification
-    private String entityId;               // Post/Comment ID
-    private Boolean seen;                  // Read status
-    private Instant createdAt;             // Creation timestamp
+    private String targetUserId;           
+    private String actorId;                
+    private NotificationType type;         
+    private String entityId;               
+    private Boolean seen;                  
+    private Instant createdAt;             
 }

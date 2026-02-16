@@ -46,7 +46,7 @@ public class FollowAcceptedEventHandler implements EventHandler {
         String followingId = (String) event.getPayload().get("followingId");
 
         try {
-            // Increment follower's followingCount
+            
             Optional<UserEntity> followerOpt = userRepository.findById(followerId);
             if (followerOpt.isPresent()) {
                 UserEntity follower = followerOpt.get();
@@ -61,7 +61,6 @@ public class FollowAcceptedEventHandler implements EventHandler {
                 log.warn("Follower user {} not found", followerId);
             }
 
-            // Increment following user's followersCount
             Optional<UserEntity> followingOpt = userRepository.findById(followingId);
             if (followingOpt.isPresent()) {
                 UserEntity following = followingOpt.get();
@@ -76,15 +75,13 @@ public class FollowAcceptedEventHandler implements EventHandler {
                 log.warn("Following user {} not found", followingId);
             }
 
-            // Fetch recent posts from the followed user and add to follower's post_feed
             List<PostEntity> recentPosts = postRepository.findByAuthorIdOrderByCreatedAtDesc(
                     followingId,
-                    PageRequest.of(0, 10)  // Fetch 10 most recent posts
+                    PageRequest.of(0, 10)  
             );
 
             log.debug("Found {} recent posts from user {}", recentPosts.size(), followingId);
 
-            // Add recent posts to follower's post_feed
             List<PostFeedEntity> feedEntries = new ArrayList<>();
             for (PostEntity post : recentPosts) {
                 PostFeedEntity feedEntry = PostFeedEntity.builder()
@@ -103,7 +100,6 @@ public class FollowAcceptedEventHandler implements EventHandler {
                 log.info("Added {} recent posts from {} to {}'s feed", feedEntries.size(), followingId, followerId);
             }
 
-            // Create FOLLOW_ACCEPTED notification for the follower
             NotificationEntity notification = NotificationEntity.builder()
                     .targetUserId(followerId)
                     .actorId(followingId)
@@ -115,7 +111,6 @@ public class FollowAcceptedEventHandler implements EventHandler {
             notificationRepository.save(notification);
             log.info("Created FOLLOW_ACCEPTED notification for user {} from user {}", followerId, followingId);
 
-            // Add story feed entry if followed user has active stories
             boolean hasActiveStories = storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(
                     followingId, Instant.now());
             if (hasActiveStories) {

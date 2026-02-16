@@ -8,16 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * PaginatedNotificationsResponse - Response for GET /api/v1/notifications
- *
- * Provides cursor-paginated list of notifications for authenticated user.
- * Ordered by: unseen first (ascending), then newest notifications first (descending by createdAt).
- *
- * Fields:
- * - data: List of NotificationDto items
- * - nextCursor: Cursor for next page (null if no more pages)
- */
 @Data
 @Builder
 @NoArgsConstructor

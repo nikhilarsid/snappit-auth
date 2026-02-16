@@ -10,12 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-/**
- * CommentDeletedEventHandler - Decrements the comment count on the post.
- *
- * The comment itself is already soft-deleted by CommentService.
- * This handler only adjusts the denormalised commentCount on PostEntity.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor

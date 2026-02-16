@@ -5,14 +5,6 @@ import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-/**
- * Reusable DTO for paginated list query parameters
- * Used in GET /follow/{username}/followers and GET /follow/{username}/following
- *
- * Validation Rules:
- * - limit: 1-50 (default 20)
- * - cursor: optional, opaque string for continuation
- */
 @Data
 @AllArgsConstructor
 public class PaginationQueryRequest {
@@ -22,9 +14,6 @@ public class PaginationQueryRequest {
 
     private String cursor;
 
-    /**
-     * Factory method with default limit
-     */
     public static PaginationQueryRequest of(Integer limit, String cursor) {
         return new PaginationQueryRequest(
                 limit != null ? limit : 20,

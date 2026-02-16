@@ -22,7 +22,7 @@ public class JwtService {
 
     public String generateToken(String userId) {
         return Jwts.builder()
-                .setClaims(Map.of("_id", userId)) // ONLY _id as requested
+                .setClaims(Map.of("_id", userId)) 
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)

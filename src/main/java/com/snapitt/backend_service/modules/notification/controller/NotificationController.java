@@ -16,17 +16,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * NotificationController - Handles notification operations
- *
- * All endpoints require JWT authentication.
- * Authorization: Users can only access their own notifications.
- * Parameter Validation: limit (1-50), cursor (optional, opaque string).
- *
- * Endpoints:
- * - GET /api/v1/notifications/{notificationId}  - Get a single notification by ID
- * - GET /api/v1/notifications                   - Get user's notifications (cursor paginated)
- */
 @Slf4j
 @RestController
 @Validated
@@ -36,10 +25,6 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    /**
-     * Extract authenticated user ID from security context
-     * @throws AuthException (UNAUTHORIZED, 401) if user not authenticated
-     */
     private String getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal)) {
@@ -48,43 +33,16 @@ public class NotificationController {
         return ((UserPrincipal) auth.getPrincipal()).getUser().getId();
     }
 
-    /**
-     * Get a single notification by ID
-     * GET /api/v1/notifications/{notificationId}
-     *
-     * @param notificationId ID of the notification to fetch
-     * @return NotificationDto with actor username
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (NOT_FOUND, 404) - Notification not found
-     */
     @GetMapping("/{notificationId}")
     public ResponseEntity<NotificationDto> getNotification(
             @PathVariable String notificationId) {
         log.info("GET /api/v1/notifications/{}", notificationId);
-        getCurrentUserId();  // Verify authentication
+        String userId = getCurrentUserId();
 
-        NotificationDto notification = notificationService.getNotificationById(notificationId);
+        NotificationDto notification = notificationService.getNotificationById(notificationId, userId);
         return ResponseEntity.ok(notification);
     }
 
-    /**
-     * Get paginated notifications for authenticated user
-     * GET /api/v1/notifications?limit=20&cursor=...
-     *
-     * Features:
-     * - Cursor-based pagination
-     * - Ordered by: unseen first (false), then fresh (newest first)
-     * - Only shows notifications for the authenticated user
-     *
-     * Query Parameters:
-     * - limit: Items per page (1-50, default 20)
-     * - cursor: Opaque pagination cursor from previous page's last item (required for page 2+)
-     *
-     * @param limit Items per page (1-50, default 20)
-     * @param cursor Opaque continuation cursor for next page (null for first page)
-     * @return PaginatedNotificationsResponse with notification list and nextCursor
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     */
     @GetMapping
     public ResponseEntity<PaginatedNotificationsResponse> getNotifications(
             @RequestParam(defaultValue = "20")

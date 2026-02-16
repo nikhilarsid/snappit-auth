@@ -29,7 +29,7 @@ public class PostLikedEventHandler implements EventHandler {
         String userId = (String) event.getPayload().get("userId");
 
         try {
-            // Fetch the post
+            
             Optional<PostEntity> postOpt = postRepository.findById(postId);
             if (postOpt.isEmpty()) {
                 log.warn("Post {} not found for like event", postId);
@@ -38,18 +38,15 @@ public class PostLikedEventHandler implements EventHandler {
 
             PostEntity post = postOpt.get();
 
-            // Increment like count
             if (post.getLikeCount() == null) {
                 post.setLikeCount(1L);
             } else {
                 post.setLikeCount(post.getLikeCount() + 1);
             }
 
-            // Save updated post
             postRepository.save(post);
             log.info("Successfully incremented like count for post {} to {}", postId, post.getLikeCount());
 
-            // Create LIKE notification for post author (skip self-like)
             String authorId = (String) event.getPayload().get("authorId");
             if (authorId != null && !authorId.equals(userId)) {
                 NotificationEntity notification = NotificationEntity.builder()

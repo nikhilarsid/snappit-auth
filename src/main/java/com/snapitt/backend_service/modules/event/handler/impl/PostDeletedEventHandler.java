@@ -11,13 +11,6 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles POST_DELETED event.
- * 
- * When a post is deleted:
- * 1. Remove the post from all users' post_feed collections
- * 2. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -34,13 +27,13 @@ public class PostDeletedEventHandler implements EventHandler {
         String authorId = (String) event.getPayload().get("authorId");
 
         try {
-            // Decrement post count on the user
+            
             mongoTemplate.updateFirst(
                     Query.query(Criteria.where("_id").is(authorId)),
                     new Update().inc("postCount", -1),
                     "users"
             );
-            // Remove this post from all users' post_feed
+            
             long deletedCount = postFeedRepository.deleteByPostId(postId);
             log.info("Removed deleted post {} from {} users' feeds", postId, deletedCount);
 

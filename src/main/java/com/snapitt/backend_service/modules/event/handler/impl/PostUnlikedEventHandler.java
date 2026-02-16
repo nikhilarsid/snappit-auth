@@ -9,13 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import java.util.Optional;
 
-/**
- * Handles POST_UNLIKED event.
- * 
- * When a user removes a like from a post:
- * 1. Decrement the post's likeCount
- * 2. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor

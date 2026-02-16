@@ -8,16 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * PaginatedFeedPostsResponse - Response for GET /api/v1/feed/posts
- *
- * Provides cursor-paginated list of posts in user's feed.
- * Ordered by: unseen first (ascending), then freshest posts first (descending by createdAt).
- *
- * Fields:
- * - data: List of FeedPostDto items
- * - nextCursor: Cursor for next page (null if no more pages)
- */
 @Data
 @Builder
 @NoArgsConstructor

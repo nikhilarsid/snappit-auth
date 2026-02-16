@@ -31,16 +31,15 @@ public class StoryCreatedEventHandler implements EventHandler {
         Instant createdAt = Instant.now();
 
         try {
-            // Fetch all approved followers of the story author
+            
             var followers = followRepository.findByFollowingIdAndStatusOrderByIdDesc(
                     authorId,
                     FollowStatus.approved,
-                    PageRequest.of(0, 10000)  // Large page size to get all followers
+                    PageRequest.of(0, 10000)  
             );
 
             log.debug("Found {} approved followers for author {}", followers.size(), authorId);
 
-            // Upsert story_feed entries for all followers (handles duplicate key gracefully)
             int upsertCount = 0;
             for (var follower : followers) {
                 mongoTemplate.upsert(

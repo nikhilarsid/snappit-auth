@@ -11,12 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-/**
- * WebConfig - Serves uploaded files as static resources
- *
- * Maps /uploads/** to the configured upload directory on disk
- * so uploaded images can be served directly via HTTP.
- */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -34,7 +28,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String absolutePath = Paths.get(uploadDir).toAbsolutePath().toString();
-        // Ensure trailing slash - required by Spring resource handler
+        
         if (!absolutePath.endsWith("/")) {
             absolutePath += "/";
         }

@@ -18,12 +18,12 @@ public class ProfileResponse {
     private Long followingCount;
     private Long postCount;
     private Boolean isFollowing;
+    private String followStatus;
     private Boolean hasStory;
     private Boolean storySeenByViewer;
     private Instant createdAt;
     private Instant updatedAt;
 
-    // Constructor for backward compatibility with GET endpoint
     public ProfileResponse(String username, String avatarUrl, String bio, Long followersCount, Long followingCount, Long postCount, Boolean isFollowing, Boolean hasStory, Instant createdAt) {
         this.username = username;
         this.avatarUrl = avatarUrl;

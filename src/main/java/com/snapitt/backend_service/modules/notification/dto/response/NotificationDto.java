@@ -7,17 +7,6 @@ import lombok.Data;
 
 import java.time.Instant;
 
-/**
- * NotificationDto - DTO for individual notification in response
- * 
- * Contains notification details:
- * - id: Notification ID
- * - actorUsername: Username of the user who triggered the notification
- * - type: Type of notification (LIKE, COMMENT, FOLLOW)
- * - entityId: Related post/comment ID
- * - seen: Whether user has seen this notification
- * - createdAt: When the notification was created
- */
 @Data
 @Builder
 @AllArgsConstructor
@@ -29,4 +18,5 @@ public class NotificationDto {
     private String entityId;
     private Boolean seen;
     private Instant createdAt;
+    private Boolean viewerFollowingActor;
 }

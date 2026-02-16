@@ -9,10 +9,6 @@ import org.springframework.context.annotation.Configuration;
 
 import jakarta.annotation.PostConstruct;
 
-/**
- * Event Handler Configuration.
- * Registers all event handlers with the processor at application startup.
- */
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
@@ -28,13 +24,11 @@ public class EventHandlerConfiguration {
     private final FollowAcceptedEventHandler followAcceptedHandler;
     private final FollowRequestedEventHandler followRequestedHandler;
     private final FollowRejectedEventHandler followRejectedHandler;
+    private final FollowRequestWithdrawnEventHandler followRequestWithdrawnHandler;
     private final UnfollowedEventHandler unfollowedHandler;
     private final PostDeletedEventHandler postDeletedHandler;
     private final StoryDeletedEventHandler storyDeletedHandler;
 
-    /**
-     * Register all handlers at startup.
-     */
     @PostConstruct
     public void registerHandlers() {
         eventProcessor.registerHandler(EventType.POST_CREATED, postCreatedHandler);
@@ -46,6 +40,7 @@ public class EventHandlerConfiguration {
         eventProcessor.registerHandler(EventType.FOLLOW_ACCEPTED, followAcceptedHandler);
         eventProcessor.registerHandler(EventType.FOLLOW_REQUESTED, followRequestedHandler);
         eventProcessor.registerHandler(EventType.FOLLOW_REJECTED, followRejectedHandler);
+        eventProcessor.registerHandler(EventType.FOLLOW_REQUEST_WITHDRAWN, followRequestWithdrawnHandler);
         eventProcessor.registerHandler(EventType.UNFOLLOWED, unfollowedHandler);
         eventProcessor.registerHandler(EventType.POST_DELETED, postDeletedHandler);
         eventProcessor.registerHandler(EventType.STORY_DELETED, storyDeletedHandler);

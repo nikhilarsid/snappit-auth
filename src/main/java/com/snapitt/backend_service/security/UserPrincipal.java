@@ -17,13 +17,13 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Return roles here if you have them (e.g., ROLE_USER)
+        
         return Collections.emptyList();
     }
 
     @Override
     public String getPassword() {
-        return null; // Password is not needed for JWT authentication
+        return null; 
     }
 
     @Override

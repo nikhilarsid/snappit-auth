@@ -1,6 +1,5 @@
 package com.snapitt.backend_service.security;
 
-// ✅ THIS IMPORT WAS MISSING OR INCORRECT
 import com.snapitt.backend_service.modules.user.repository.UserRepository;
 import com.snapitt.backend_service.modules.user.model.UserEntity;
 
@@ -40,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && jwtService.isTokenValid(token)) {
             String userId = jwtService.extractUserId(token);
-            // Use findById for MongoDB ID lookups
+            
             UserEntity user = userRepository.findById(userId).orElse(null);
 
             if (user != null) {

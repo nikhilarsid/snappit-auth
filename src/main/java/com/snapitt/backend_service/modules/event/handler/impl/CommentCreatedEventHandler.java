@@ -34,7 +34,7 @@ public class CommentCreatedEventHandler implements EventHandler {
         String userId = (String) event.getPayload().get("authorId");
 
         try {
-            // Fetch the post and increment commentCount
+            
             Optional<PostEntity> postOpt = postRepository.findById(postId);
             if (postOpt.isEmpty()) {
                 log.warn("Post {} not found for comment event", postId);
@@ -50,7 +50,6 @@ public class CommentCreatedEventHandler implements EventHandler {
             postRepository.save(post);
             log.info("Incremented comment count for post {} to {}", postId, post.getCommentCount());
 
-            // If this is a reply to another comment, increment parent reply count
             if (parentCommentId != null && !parentCommentId.isBlank()) {
                 Optional<CommentEntity> parentOpt = commentRepository.findById(parentCommentId);
                 if (parentOpt.isPresent()) {
@@ -67,7 +66,6 @@ public class CommentCreatedEventHandler implements EventHandler {
                 }
             }
 
-            // Create COMMENT notification for post author (skip self-comment)
             if (!userId.equals(post.getAuthorId())) {
                 NotificationEntity notification = NotificationEntity.builder()
                         .targetUserId(post.getAuthorId())

@@ -6,14 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles FOLLOW_REJECTED event.
- * 
- * When a user rejects a follow request:
- * 1. Log the event for tracking
- * 2. TODO: Send notification to the requester about rejection
- * 3. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -28,11 +20,6 @@ public class FollowRejectedEventHandler implements EventHandler {
 
         try {
             log.info("Follow request rejected: {} rejected request from {}", followingId, followerId);
-
-            // TODO: Send notification to followerId about the rejection
-            // - Create notification document with type='follow_rejected'
-            // - Insert into notifications collection
-            // - Notify the requester that their request was rejected
 
             log.info("Successfully processed follow rejection from {} to {}", followerId, followingId);
         } catch (Exception ex) {

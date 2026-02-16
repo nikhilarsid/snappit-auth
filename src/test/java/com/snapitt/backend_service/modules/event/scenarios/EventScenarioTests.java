@@ -14,10 +14,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Scenario-based tests documenting the CDC event flow for each event type.
- * These tests demonstrate the expected behavior without database dependencies.
- */
 @DisplayName("CDC Event Architecture - Scenario Tests")
 public class EventScenarioTests {
 
@@ -40,7 +36,6 @@ public class EventScenarioTests {
     void scenarioPostCreated() {
         log.info("\n=== SCENARIO 1: POST_CREATED ===");
         
-        // Step 1: User creates a post
         log.info("Step 1: User creates post");
         String postId = "post-2026-001";
         String authorId = "user-alice";
@@ -52,18 +47,15 @@ public class EventScenarioTests {
         
         EventEntity event = createEvent(EventType.POST_CREATED, postId, payload);
         
-        // Assert - Event created
         assertEquals(EventStatus.pending, event.getStatus());
         assertEquals(EventType.POST_CREATED, event.getType());
         assertEquals(authorId, event.getPayload().get("authorId"));
         log.info("  ✓ POST_CREATED event emitted to database");
         
-        // Step 2: MongoDB Change Stream detects the event
         log.info("Step 2: Change Stream detects new event");
         assertTrue(event.getStatus() == EventStatus.pending);
         log.info("  ✓ Change stream triggered for event: {}", event.getId());
         
-        // Step 3: Worker claims the event
         log.info("Step 3: Worker claims event");
         event.setStatus(EventStatus.processing);
         event.setLockedBy("worker-1");
@@ -73,13 +65,11 @@ public class EventScenarioTests {
         assertEquals("worker-1", event.getLockedBy());
         log.info("  ✓ Event claimed by worker-1");
         
-        // Step 4: Handler processes (distributes to followers)
         log.info("Step 4: PostCreatedEventHandler processes");
         log.info("  - Fetching followers of user: {}", authorId);
         log.info("  - Bulk inserting post to 150 followers' feeds");
         log.info("  - Creating indexes for fast feed queries");
         
-        // Step 5: Handler completes, event marked done
         log.info("Step 5: Event marked as done");
         event.setStatus(EventStatus.done);
         event.setProcessedAt(Instant.now());
@@ -175,7 +165,7 @@ public class EventScenarioTests {
         payload.put("postId", postId);
         payload.put("userId", userId);
         payload.put("text", "This is amazing!");
-        payload.put("parentCommentId", null);  // Top-level comment
+        payload.put("parentCommentId", null);  
         
         EventEntity event = createEvent(EventType.COMMENT_CREATED, commentId, payload);
         log.info("  ✓ COMMENT_CREATED event emitted");
@@ -297,13 +287,11 @@ public class EventScenarioTests {
             event.setLockedBy("worker-" + (i + 1));
             log.info("    - Claimed by worker-{}", (i + 1));
             
-            // Simulate handler failure
             log.info("    - Handler failed: {}",
                     i == 0 ? "Network timeout" : 
                     i == 1 ? "Database unavailable" : 
                     "Max retries exceeded");
             
-            // Reset for retry
             if (i < maxRetries - 1) {
                 event.setStatus(EventStatus.pending);
                 event.setLockedBy(null);
@@ -344,7 +332,6 @@ public class EventScenarioTests {
         log.info("  - DeadWorkerRecoveryService runs every 1 minute");
         log.info("  - Detects event locked for > 5 minutes");
         
-        // Simulate recovery
         log.info("Step 4: Recovery service releases stale lock");
         event.setStatus(EventStatus.pending);
         event.setLockedBy(null);
@@ -415,11 +402,9 @@ public class EventScenarioTests {
             
             EventEntity event = createEvent(type, "agg-id", Map.of());
             
-            // Claim
             event.setStatus(EventStatus.processing);
             event.setLockedBy("worker-pool");
             
-            // Process (handler specific logic)
             event.setStatus(EventStatus.done);
             event.setProcessedAt(Instant.now());
             event.setLockedBy(null);

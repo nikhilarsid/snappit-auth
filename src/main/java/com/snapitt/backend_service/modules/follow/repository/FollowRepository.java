@@ -13,8 +13,6 @@ import java.util.List;
 
 public interface FollowRepository extends MongoRepository<FollowEntity, String> {
 
-
-
     Optional<FollowEntity> findByFollowerIdAndFollowingId(String followerId, String followingId);
 
     List<FollowEntity> findByFollowingIdAndStatusOrderByIdDesc(String followingId, FollowStatus status, Pageable pageable);

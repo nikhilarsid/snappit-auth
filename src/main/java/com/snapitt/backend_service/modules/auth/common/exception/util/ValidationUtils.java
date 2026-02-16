@@ -4,11 +4,9 @@ import java.util.regex.Pattern;
 
 public class ValidationUtils {
 
-    // Regex: At least 1 digit, 1 lower, 1 upper, 1 special char, no whitespace, 8-20 chars
     private static final String PASSWORD_PATTERN =
             "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!?])(?=\\S+$).{8,20}$";
 
-    // Regex: Alphanumeric, underscores, dots, 3-20 chars
     private static final String USERNAME_PATTERN =
             "^[a-zA-Z0-9._]{3,20}$";
 

@@ -18,13 +18,6 @@ import com.snapitt.backend_service.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * FollowController - Handles follow operations
- *
- * All endpoints require authentication.
- * Username path parameter validated via @Pattern annotation.
- * Pagination query parameters validated via @Min/@Max annotations.
- */
 @RestController
 @Validated
 @RequestMapping("/api/v1/follow")
@@ -33,10 +26,6 @@ public class FollowController {
 
     private final FollowService followService;
 
-    /**
-     * Extract authenticated user ID from security context
-     * @throws AuthException (UNAUTHORIZED, 401) if user not authenticated
-     */
     private String getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal)) {
@@ -45,18 +34,6 @@ public class FollowController {
         return ((UserPrincipal) auth.getPrincipal()).getUser().getId();
     }
 
-    /**
-     * Create follow request to target user
-     * POST /api/v1/follow/{username}
-     *
-     * @param username Target user's username (3-30 chars, alphanumeric + _.- )
-     * @return FollowResponse with success message
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (USER_NOT_FOUND, 404) - Target user not found
-     * @throws AuthException (CANNOT_FOLLOW_SELF, 400) - Cannot follow self
-     * @throws AuthException (ALREADY_FOLLOWING, 409) - Already following
-     * @throws AuthException (REQUEST_ALREADY_SENT, 409) - Request already exists
-     */
     @PostMapping("/{username}")
     public ResponseEntity<FollowResponse> createFollow(
             @PathVariable
@@ -67,16 +44,6 @@ public class FollowController {
         return ResponseEntity.ok(FollowResponse.of("FOLLOW_REQUEST_SENT"));
     }
 
-    /**
-     * Approve follow request from user
-     * POST /api/v1/follow/{username}/approve
-     *
-     * @param username Username of requester who wants to follow the authenticated user
-     * @return FollowResponse with success message
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (USER_NOT_FOUND, 404) - Requester not found
-     * @throws AuthException (NO_PENDING_REQUEST, 404) - No pending request found
-     */
     @PostMapping("/{username}/approve")
     public ResponseEntity<FollowResponse> approveFollow(
             @PathVariable
@@ -87,16 +54,6 @@ public class FollowController {
         return ResponseEntity.ok(FollowResponse.of("FOLLOW_APPROVED"));
     }
 
-    /**
-     * Reject follow request from user
-     * POST /api/v1/follow/{username}/reject
-     *
-     * @param username Username of requester
-     * @return FollowResponse with success message
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (USER_NOT_FOUND, 404) - Requester not found
-     * @throws AuthException (NO_PENDING_REQUEST, 404) - No pending request found
-     */
     @PostMapping("/{username}/reject")
     public ResponseEntity<FollowResponse> rejectFollow(
             @PathVariable
@@ -107,38 +64,16 @@ public class FollowController {
         return ResponseEntity.ok(FollowResponse.of("FOLLOW_REJECTED"));
     }
 
-    /**
-     * Unfollow a user
-     * DELETE /api/v1/follow/{username}
-     *
-     * @param username Username to unfollow
-     * @return FollowResponse with success message
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     * @throws AuthException (CANNOT_UNFOLLOW_SELF, 400) - Cannot unfollow self
-     * @throws AuthException (NOT_FOLLOWING, 404) - Not currently following
-     */
     @DeleteMapping("/{username}")
     public ResponseEntity<FollowResponse> unfollow(
             @PathVariable
             @Pattern(regexp = "^[a-zA-Z0-9_.-]{3,30}$", message = "Username format is invalid")
             String username) {
         String followerId = getCurrentUserId();
-        followService.unfollow(followerId, username);
-        return ResponseEntity.ok(FollowResponse.of("UNFOLLOWED"));
+        String result = followService.unfollow(followerId, username);
+        return ResponseEntity.ok(FollowResponse.of(result));
     }
 
-    /**
-     * Get followers of a user (paginated)
-     * GET /api/v1/follow/{username}/followers?limit=20&cursor=...
-     *
-     * @param username Target user's username
-     * @param limit Items per page (1-50, default 20)
-     * @param cursor Opaque continuation cursor for next page
-     * @return PaginatedFollowersResponse with follower list and nextCursor
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     */
     @GetMapping("/{username}/followers")
     public ResponseEntity<PaginatedFollowersResponse> getFollowers(
             @PathVariable
@@ -154,10 +89,6 @@ public class FollowController {
         return ResponseEntity.ok(result);
     }
 
-    /**
-     * Get followers for the authenticated user (paginated)
-     * GET /api/v1/follow/my/followers?limit=20&cursor=...
-     */
     @GetMapping("/my/followers")
     public ResponseEntity<PaginatedFollowersResponse> getMyFollowers(
             @RequestParam(defaultValue = "20")
@@ -170,17 +101,6 @@ public class FollowController {
         return ResponseEntity.ok(result);
     }
 
-    /**
-     * Get following list of a user (paginated)
-     * GET /api/v1/follow/{username}/following?limit=20&cursor=...
-     *
-     * @param username Target user's username
-     * @param limit Items per page (1-50, default 20)
-     * @param cursor Opaque continuation cursor for next page
-     * @return PaginatedFollowingResponse with following list and nextCursor
-     * @throws AuthException (UNAUTHORIZED, 401) - Not authenticated
-     * @throws AuthException (USER_NOT_FOUND, 404) - User not found
-     */
     @GetMapping("/{username}/following")
     public ResponseEntity<PaginatedFollowingResponse> getFollowing(
             @PathVariable
@@ -196,13 +116,6 @@ public class FollowController {
         return ResponseEntity.ok(result);
     }
 
-    /**
-     * Get pending follow requests for the authenticated user (paginated)
-     * GET /api/v1/follow/my/pending?limit=20&cursor=...
-     *
-     * Returns users who have sent a follow request to the authenticated user
-     * that has not yet been approved or rejected.
-     */
     @GetMapping("/my/pending")
     public ResponseEntity<PaginatedFollowersResponse> getMyPendingRequests(
             @RequestParam(defaultValue = "20")
@@ -215,10 +128,6 @@ public class FollowController {
         return ResponseEntity.ok(result);
     }
 
-    /**
-     * Get following list for the authenticated user (paginated)
-     * GET /api/v1/follow/my/following?limit=20&cursor=...
-     */
     @GetMapping("/my/following")
     public ResponseEntity<PaginatedFollowingResponse> getMyFollowing(
             @RequestParam(defaultValue = "20")
