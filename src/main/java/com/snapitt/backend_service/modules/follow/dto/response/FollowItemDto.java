@@ -14,15 +14,15 @@ import lombok.Data;
 @AllArgsConstructor
 public class FollowItemDto {
     private String username;
-    private String pfpUrl;           // Profile picture URL
+    private String avatarUrl;        // Profile picture URL
     private Boolean alsoFollowing;   // Whether viewer is following this user (optional, only in followers list)
 
     /**
      * Constructor for following list (no alsoFollowing flag)
      */
-    public FollowItemDto(String username, String pfpUrl) {
+    public FollowItemDto(String username, String avatarUrl) {
         this.username = username;
-        this.pfpUrl = pfpUrl;
+        this.avatarUrl = avatarUrl;
         this.alsoFollowing = null;
     }
 }

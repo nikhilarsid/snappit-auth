@@ -6,9 +6,14 @@ import com.snapitt.backend_service.modules.feed.model.PostFeedEntity;
 import com.snapitt.backend_service.modules.feed.repository.PostFeedRepository;
 import com.snapitt.backend_service.modules.follow.model.FollowStatus;
 import com.snapitt.backend_service.modules.follow.repository.FollowRepository;
+import com.snapitt.backend_service.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,6 +34,7 @@ public class PostCreatedEventHandler implements EventHandler {
 
     private final FollowRepository followRepository;
     private final PostFeedRepository postFeedRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -39,6 +45,13 @@ public class PostCreatedEventHandler implements EventHandler {
         Instant createdAt = Instant.now();
 
         try {
+            // Increment post count on the user
+            mongoTemplate.updateFirst(
+                    Query.query(Criteria.where("_id").is(authorId)),
+                    new Update().inc("postCount", 1),
+                    "users"
+            );
+
             // Fetch all approved followers of the post author
             var followers = followRepository.findByFollowingIdAndStatusOrderByIdDesc(
                     authorId,

@@ -215,12 +215,12 @@ public class FeedService {
                         String avatarUrl = creator.getProfile() != null ? creator.getProfile().getAvatarUrl() : null;
 
                         return FeedStoryDto.builder()
-                                .id(record.getId())
-                                .username(creator.getUsername())
-                                .avatar_url(avatarUrl)
-                                .story_id(latestStory.getId())
+                                .feedStoryId(record.getId())
+                                .creatorUsername(creator.getUsername())
+                                .creatorAvatarUrl(avatarUrl)
+                                .storyId(latestStory.getId())
                                 .seen(record.getSeen())
-                                .latest_story_at(record.getLatestStoryAt())
+                                .latestStoryAt(record.getLatestStoryAt())
                                 .build();
                     })
                     .filter(item -> item != null)  // Filter out orphaned/expired stories

@@ -28,6 +28,7 @@ public class PostResponse {
     private String caption;         // Post caption
     private Long likeCount;         // Number of likes
     private Long commentCount;      // Number of comments
+    private Boolean likedByViewer;  // Whether current viewer has liked this post
     private Instant createdAt;      // Creation timestamp
     private Boolean canDelete;      // True if viewer is the post author
 }

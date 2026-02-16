@@ -24,6 +24,7 @@ import java.time.Instant;
 public class NotificationDto {
     private String id;
     private String actorUsername;
+    private String actorAvatarUrl;
     private NotificationType type;
     private String entityId;
     private Boolean seen;

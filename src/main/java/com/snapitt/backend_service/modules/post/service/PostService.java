@@ -444,6 +444,9 @@ public class PostService {
         // Determine if viewer can delete (only if viewer is the author)
         Boolean canDelete = viewerId != null && viewerId.equals(post.getAuthorId());
 
+        // Check if viewer has liked this post
+        Boolean likedByViewer = viewerId != null && likeRepository.findByUserIdAndPostId(viewerId, post.getId()).isPresent();
+
         return PostResponse.builder()
                 .id(post.getId())
                 .authorUsername(authorUsername)
@@ -451,6 +454,7 @@ public class PostService {
                 .caption(post.getCaption())
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
+                .likedByViewer(likedByViewer)
                 .createdAt(post.getCreatedAt())
                 .canDelete(canDelete)
                 .build();

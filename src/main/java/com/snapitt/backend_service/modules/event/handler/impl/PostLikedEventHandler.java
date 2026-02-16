@@ -2,27 +2,24 @@ package com.snapitt.backend_service.modules.event.handler.impl;
 
 import com.snapitt.backend_service.modules.event.handler.EventHandler;
 import com.snapitt.backend_service.modules.event.model.EventEntity;
+import com.snapitt.backend_service.modules.notification.model.NotificationEntity;
+import com.snapitt.backend_service.modules.notification.model.NotificationType;
+import com.snapitt.backend_service.modules.notification.repository.NotificationRepository;
 import com.snapitt.backend_service.modules.post.model.PostEntity;
 import com.snapitt.backend_service.modules.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import java.time.Instant;
 import java.util.Optional;
 
-/**
- * Handles POST_LIKED event.
- * 
- * When a post is liked:
- * 1. Increment posts.likeCount
- * 2. Insert a like notification for the post author
- * 3. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PostLikedEventHandler implements EventHandler {
 
     private final PostRepository postRepository;
+    private final NotificationRepository notificationRepository;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -52,9 +49,20 @@ public class PostLikedEventHandler implements EventHandler {
             postRepository.save(post);
             log.info("Successfully incremented like count for post {} to {}", postId, post.getLikeCount());
 
-            // TODO: Insert like notification for the post author
-            // - Create notification document with type='like', liker_user_id, post_id, post_author_id
-            // - Insert into notifications collection
+            // Create LIKE notification for post author (skip self-like)
+            String authorId = (String) event.getPayload().get("authorId");
+            if (authorId != null && !authorId.equals(userId)) {
+                NotificationEntity notification = NotificationEntity.builder()
+                        .targetUserId(authorId)
+                        .actorId(userId)
+                        .type(NotificationType.LIKE)
+                        .entityId(postId)
+                        .seen(false)
+                        .createdAt(Instant.now())
+                        .build();
+                notificationRepository.save(notification);
+                log.info("Created LIKE notification for user {} from user {}", authorId, userId);
+            }
         } catch (Exception ex) {
             log.error("Error processing POST_LIKED event for post {}", postId, ex);
             throw ex;

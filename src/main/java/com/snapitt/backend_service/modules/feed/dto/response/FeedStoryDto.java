@@ -28,10 +28,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class FeedStoryDto {
-    private String id;               // Story feed record ID (for marking as seen)
-    private String username;         // Story creator's username
-    private String avatar_url;       // Creator's avatar URL
-    private String story_id;         // ID of latest story from this creator
-    private Boolean seen;            // Whether user has seen the latest story
-    private Instant latest_story_at; // Timestamp of latest story
+    private String feedStoryId;       // Story feed record ID (for marking as seen)
+    private String creatorUsername;    // Story creator's username
+    private String creatorAvatarUrl;  // Creator's avatar URL
+    private String storyId;           // ID of latest story from this creator
+    private Boolean seen;             // Whether user has seen the latest story
+    private Instant latestStoryAt;    // Timestamp of latest story
 }

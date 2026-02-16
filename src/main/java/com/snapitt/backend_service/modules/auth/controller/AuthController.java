@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,9 @@ public class AuthController {
 
     private final AuthService authService;
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
 
     @PostMapping("/signup")
     public ResponseEntity<UserEntity> signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
@@ -73,7 +77,7 @@ public class AuthController {
         try {
             Cookie cookie = new Cookie("token", value);
             cookie.setHttpOnly(true);
-            cookie.setSecure(true); // Always true for production
+            cookie.setSecure(cookieSecure);
             cookie.setPath("/");
             cookie.setMaxAge(maxAge);
             response.addCookie(cookie);

@@ -4,29 +4,27 @@ import com.snapitt.backend_service.modules.event.handler.EventHandler;
 import com.snapitt.backend_service.modules.event.model.EventEntity;
 import com.snapitt.backend_service.modules.feed.model.PostFeedEntity;
 import com.snapitt.backend_service.modules.feed.repository.PostFeedRepository;
+import com.snapitt.backend_service.modules.notification.model.NotificationEntity;
+import com.snapitt.backend_service.modules.notification.model.NotificationType;
+import com.snapitt.backend_service.modules.notification.repository.NotificationRepository;
 import com.snapitt.backend_service.modules.post.model.PostEntity;
 import com.snapitt.backend_service.modules.post.repository.PostRepository;
+import com.snapitt.backend_service.modules.story.repository.StoryRepository;
 import com.snapitt.backend_service.modules.user.model.UserEntity;
 import com.snapitt.backend_service.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Handles FOLLOW_ACCEPTED event.
- * 
- * When a follow request is accepted:
- * 1. Increment following count for requester
- * 2. Increment followers count for recipient
- * 3. Insert notification for the requester
- * 4. Populate post_feed with recent posts from the newly followed account
- * 5. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -35,6 +33,9 @@ public class FollowAcceptedEventHandler implements EventHandler {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final PostFeedRepository postFeedRepository;
+    private final NotificationRepository notificationRepository;
+    private final StoryRepository storyRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -102,9 +103,32 @@ public class FollowAcceptedEventHandler implements EventHandler {
                 log.info("Added {} recent posts from {} to {}'s feed", feedEntries.size(), followingId, followerId);
             }
 
-            // TODO: Insert follow notification for the follower
-            // - Create notification document with type='follow_accepted', follower_id, following_id
-            // - Insert into notifications collection
+            // Create FOLLOW_ACCEPTED notification for the follower
+            NotificationEntity notification = NotificationEntity.builder()
+                    .targetUserId(followerId)
+                    .actorId(followingId)
+                    .type(NotificationType.FOLLOW_ACCEPTED)
+                    .entityId(followingId)
+                    .seen(false)
+                    .createdAt(Instant.now())
+                    .build();
+            notificationRepository.save(notification);
+            log.info("Created FOLLOW_ACCEPTED notification for user {} from user {}", followerId, followingId);
+
+            // Add story feed entry if followed user has active stories
+            boolean hasActiveStories = storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(
+                    followingId, Instant.now());
+            if (hasActiveStories) {
+                mongoTemplate.upsert(
+                        Query.query(Criteria.where("userId").is(followerId).and("creatorId").is(followingId)),
+                        new Update()
+                                .set("latestStoryAt", Instant.now())
+                                .set("seen", false)
+                                .set("isDeleted", false),
+                        "story_feed"
+                );
+                log.info("Added story feed entry for follower {} from creator {}", followerId, followingId);
+            }
 
             log.info("Successfully accepted follow request from {} to {}", followerId, followingId);
         } catch (Exception ex) {

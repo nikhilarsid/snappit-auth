@@ -48,11 +48,11 @@ public class NotificationService {
                     return new AuthException("Notification not found", "NOT_FOUND", HttpStatus.NOT_FOUND);
                 });
 
-        // Fetch actor's user to get username
+        // Fetch actor's user to get username and avatar
         UserEntity actor = userRepository.findById(notification.getActorId())
                 .orElseThrow(() -> new AuthException("Actor not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
 
-        return mapToDto(notification, actor.getUsername());
+        return mapToDto(notification, actor);
     }
 
     /**
@@ -94,7 +94,7 @@ public class NotificationService {
                 .map(notification -> {
                     UserEntity actor = userRepository.findById(notification.getActorId())
                             .orElseThrow(() -> new AuthException("Actor not found", "NOT_FOUND", HttpStatus.NOT_FOUND));
-                    return mapToDto(notification, actor.getUsername());
+                    return mapToDto(notification, actor);
                 })
                 .toList();
 
@@ -113,10 +113,12 @@ public class NotificationService {
      * @param actorUsername Username of the actor who triggered the notification
      * @return Mapped DTO
      */
-    private NotificationDto mapToDto(NotificationEntity notification, String actorUsername) {
+    private NotificationDto mapToDto(NotificationEntity notification, UserEntity actor) {
+        String avatarUrl = actor.getProfile() != null ? actor.getProfile().getAvatarUrl() : null;
         return NotificationDto.builder()
                 .id(notification.getId())
-                .actorUsername(actorUsername)
+                .actorUsername(actor.getUsername())
+                .actorAvatarUrl(avatarUrl)
                 .type(notification.getType())
                 .entityId(notification.getEntityId())
                 .seen(notification.getSeen())

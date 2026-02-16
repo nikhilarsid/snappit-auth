@@ -2,33 +2,25 @@ package com.snapitt.backend_service.modules.event.handler.impl;
 
 import com.snapitt.backend_service.modules.event.handler.EventHandler;
 import com.snapitt.backend_service.modules.event.model.EventEntity;
-import com.snapitt.backend_service.modules.feed.model.StoryFeedEntity;
-import com.snapitt.backend_service.modules.feed.repository.StoryFeedRepository;
 import com.snapitt.backend_service.modules.follow.model.FollowStatus;
 import com.snapitt.backend_service.modules.follow.repository.FollowRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
-/**
- * Handles STORY_CREATED event.
- * 
- * When a story is created:
- * 1. Fetch all approved followers of the story author
- * 2. Upsert story_feed entries for each follower
- * 3. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class StoryCreatedEventHandler implements EventHandler {
 
     private final FollowRepository followRepository;
-    private final StoryFeedRepository storyFeedRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -48,23 +40,23 @@ public class StoryCreatedEventHandler implements EventHandler {
 
             log.debug("Found {} approved followers for author {}", followers.size(), authorId);
 
-            // Prepare story_feed entries for all followers
-            List<StoryFeedEntity> feedEntries = new ArrayList<>();
+            // Upsert story_feed entries for all followers (handles duplicate key gracefully)
+            int upsertCount = 0;
             for (var follower : followers) {
-                StoryFeedEntity feedEntry = StoryFeedEntity.builder()
-                        .userId(follower.getFollowerId())
-                        .creatorId(authorId)
-                        .latestStoryAt(createdAt)
-                        .seen(false)
-                        .isDeleted(false)
-                        .build();
-                feedEntries.add(feedEntry);
+                mongoTemplate.upsert(
+                        Query.query(Criteria.where("userId").is(follower.getFollowerId())
+                                .and("creatorId").is(authorId)),
+                        new Update()
+                                .set("latestStoryAt", createdAt)
+                                .set("seen", false)
+                                .set("isDeleted", false),
+                        "story_feed"
+                );
+                upsertCount++;
             }
 
-            // Bulk insert into story_feed collection (upsert by userId + creatorId unique constraint)
-            if (!feedEntries.isEmpty()) {
-                storyFeedRepository.saveAll(feedEntries);
-                log.info("Distributed story {} to {} followers", storyId, feedEntries.size());
+            if (upsertCount > 0) {
+                log.info("Distributed story {} to {} followers (upsert)", storyId, upsertCount);
             } else {
                 log.info("Story {} has no followers, skipping feed distribution", storyId);
             }

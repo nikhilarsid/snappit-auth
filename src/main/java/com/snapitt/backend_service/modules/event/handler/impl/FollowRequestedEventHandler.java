@@ -2,22 +2,20 @@ package com.snapitt.backend_service.modules.event.handler.impl;
 
 import com.snapitt.backend_service.modules.event.handler.EventHandler;
 import com.snapitt.backend_service.modules.event.model.EventEntity;
+import com.snapitt.backend_service.modules.notification.model.NotificationEntity;
+import com.snapitt.backend_service.modules.notification.model.NotificationType;
+import com.snapitt.backend_service.modules.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import java.time.Instant;
 
-/**
- * Handles FOLLOW_REQUESTED event.
- * 
- * When a user sends a follow request:
- * 1. Log the event for tracking
- * 2. TODO: Send notification to the target user
- * 3. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class FollowRequestedEventHandler implements EventHandler {
+
+    private final NotificationRepository notificationRepository;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -27,13 +25,18 @@ public class FollowRequestedEventHandler implements EventHandler {
         String followingId = (String) event.getPayload().get("followingId");
 
         try {
+            // Create FOLLOW_REQUEST notification for target user
+            NotificationEntity notification = NotificationEntity.builder()
+                    .targetUserId(followingId)
+                    .actorId(followerId)
+                    .type(NotificationType.FOLLOW_REQUEST)
+                    .entityId(followerId)
+                    .seen(false)
+                    .createdAt(Instant.now())
+                    .build();
+            notificationRepository.save(notification);
+            log.info("Created FOLLOW_REQUEST notification for user {} from user {}", followingId, followerId);
             log.info("Follow request tracked: {} requested to follow {}", followerId, followingId);
-
-            // TODO: Send notification to followingId about the follow request
-            // - Create notification document
-            // - Insert into notifications collection
-            // - This will trigger a separate notification delivery system
-
             log.info("Successfully processed follow request from {} to {}", followerId, followingId);
         } catch (Exception ex) {
             log.error("Error processing FOLLOW_REQUESTED event", ex);

@@ -4,6 +4,7 @@ import com.snapitt.backend_service.modules.auth.common.exception.AuthException;
 import com.snapitt.backend_service.modules.follow.repository.FollowRepository;
 import com.snapitt.backend_service.modules.profile.dto.request.UpdateProfileRequest;
 import com.snapitt.backend_service.modules.profile.dto.response.ProfileResponse;
+import com.snapitt.backend_service.modules.story.repository.StoryRepository;
 import com.snapitt.backend_service.modules.user.model.UserEntity;
 import com.snapitt.backend_service.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class ProfileService {
 
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+    private final StoryRepository storyRepository;
 
     // Validation constraints
     private static final int MAX_NAME_LENGTH = 100;
@@ -126,24 +128,31 @@ public class ProfileService {
 
     private ProfileResponse buildProfileResponse(UserEntity user, boolean canViewFull, boolean isFollowing) {
         String bio = null;
-        if (user.getProfile() != null) {
-            bio = user.getProfile().getBio();
-        }
-
+        String name = null;
         String avatarUrl = null;
         if (user.getProfile() != null) {
+            bio = user.getProfile().getBio();
+            name = user.getProfile().getName();
             avatarUrl = user.getProfile().getAvatarUrl();
         }
 
-        return new ProfileResponse(
+        // Check if user has active stories (only visible to self or followers)
+        boolean hasStory = canViewFull && storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(
+                user.getId(), java.time.Instant.now());
+
+        ProfileResponse response = new ProfileResponse(
                 user.getUsername(),
                 avatarUrl,
                 bio,
                 user.getFollowersCount(),
                 user.getFollowingCount(),
+                user.getPostCount() != null ? user.getPostCount() : 0L,
                 isFollowing,
+                hasStory,
                 user.getCreatedAt()
         );
+        response.setName(name);
+        return response;
     }
 
     /**
@@ -199,13 +208,18 @@ public class ProfileService {
             String bio = saved.getProfile() != null ? saved.getProfile().getBio() : null;
             String name = saved.getProfile() != null ? saved.getProfile().getName() : null;
 
+            boolean hasStory = storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(
+                    saved.getId(), Instant.now());
+
             ProfileResponse response = new ProfileResponse(
                     saved.getUsername(),
                     avatarUrl,
                     bio,
                     saved.getFollowersCount(),
                     saved.getFollowingCount(),
+                    saved.getPostCount() != null ? saved.getPostCount() : 0L,
                     false,
+                    hasStory,
                     saved.getUpdatedAt()
             );
             response.setName(name);

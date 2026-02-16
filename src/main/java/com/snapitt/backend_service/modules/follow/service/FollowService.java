@@ -287,7 +287,7 @@ public class FollowService {
      * @throws AuthException (USER_NOT_FOUND, 404) - User not found
      * @throws AuthException (INTERNAL_SERVER_ERROR, 500) - Unexpected errors
      */
-    public PaginatedFollowingResponse getFollowing(String username, int limit, String cursor) {
+    public PaginatedFollowingResponse getFollowing(String username, int limit, String cursor, String viewerId) {
         try {
             UserEntity user = profileService.getUserByUsername(username);
             if (user == null) {
@@ -309,9 +309,25 @@ public class FollowService {
                     .collect(Collectors.toList());
             
             List<UserEntity> users = followingIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followingIds);
-            
+
+            // Check which users the viewer also follows
+            final Set<String> viewerFollowingSet;
+            if (viewerId != null && !viewerId.isBlank() && !followingIds.isEmpty()) {
+                var viewerRels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followingIds);
+                viewerFollowingSet = viewerRels.stream()
+                        .filter(r -> r.getStatus() == FollowStatus.approved)
+                        .map(FollowEntity::getFollowingId)
+                        .collect(Collectors.toSet());
+            } else {
+                viewerFollowingSet = java.util.Collections.emptySet();
+            }
+
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(u.getUsername(), u.getProfile() != null ? u.getProfile().getAvatarUrl() : null))
+                    .map(u -> new FollowItemDto(
+                            u.getUsername(),
+                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
+                            viewerId != null && viewerFollowingSet.contains(u.getId())
+                    ))
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
@@ -388,9 +404,53 @@ public class FollowService {
     }
 
     /**
+     * Get pending follow requests for the authenticated user (paginated)
+     * Returns users who have sent a follow request to this user that is still pending.
+     */
+    public PaginatedFollowersResponse getPendingFollowRequests(String userId, int limit, String cursor) {
+        try {
+            int pageSize = Math.max(1, Math.min(limit, 50));
+            PageRequest pr = PageRequest.of(0, pageSize);
+
+            List<FollowEntity> relations;
+            if (cursor == null) {
+                relations = followRepository.findByFollowingIdAndStatusOrderByIdDesc(userId, FollowStatus.pending, pr);
+            } else {
+                relations = followRepository.findByFollowingIdAndStatusAndIdLessThanOrderByIdDesc(userId, FollowStatus.pending, cursor, pr);
+            }
+
+            List<String> followerIds = relations.stream()
+                    .map(FollowEntity::getFollowerId)
+                    .collect(Collectors.toList());
+
+            List<UserEntity> users = followerIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followerIds);
+
+            List<FollowItemDto> data = users.stream()
+                    .map(u -> new FollowItemDto(
+                            u.getUsername(),
+                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
+                            false  // not following since this is a pending request
+                    ))
+                    .collect(Collectors.toList());
+
+            String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
+
+            return PaginatedFollowersResponse.builder()
+                    .data(data)
+                    .nextCursor(nextCursor)
+                    .build();
+        } catch (AuthException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            logger.error("Error retrieving pending follow requests for userId: {}", userId, ex);
+            throw new AuthException("An error occurred while retrieving pending follow requests", "INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Get following by userId (paginated) - avoids username lookup
      */
-    public PaginatedFollowingResponse getFollowingByUserId(String userId, int limit, String cursor) {
+    public PaginatedFollowingResponse getFollowingByUserId(String userId, int limit, String cursor, String viewerId) {
         try {
             UserEntity user = profileService.getUserById(userId);
             if (user == null) {
@@ -413,8 +473,24 @@ public class FollowService {
 
             List<UserEntity> users = followingIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followingIds);
 
+            // Check which users the viewer also follows
+            final Set<String> viewerFollowingSet;
+            if (viewerId != null && !viewerId.isBlank() && !followingIds.isEmpty()) {
+                var viewerRels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followingIds);
+                viewerFollowingSet = viewerRels.stream()
+                        .filter(r -> r.getStatus() == FollowStatus.approved)
+                        .map(FollowEntity::getFollowingId)
+                        .collect(Collectors.toSet());
+            } else {
+                viewerFollowingSet = java.util.Collections.emptySet();
+            }
+
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(u.getUsername(), u.getProfile() != null ? u.getProfile().getAvatarUrl() : null))
+                    .map(u -> new FollowItemDto(
+                            u.getUsername(),
+                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
+                            viewerId != null && viewerFollowingSet.contains(u.getId())
+                    ))
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();

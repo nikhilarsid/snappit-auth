@@ -26,6 +26,7 @@ public class UserEntity {
     private Profile profile;
     private Long followersCount;
     private Long followingCount;
+    private Long postCount;
 
     @CreatedDate
     private Instant createdAt;

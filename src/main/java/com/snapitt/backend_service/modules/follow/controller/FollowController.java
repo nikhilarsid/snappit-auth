@@ -192,7 +192,26 @@ public class FollowController {
             int limit,
             @RequestParam(required = false) String cursor) {
         String currentUserId = getCurrentUserId();
-        PaginatedFollowingResponse result = followService.getFollowing(username, limit, cursor);
+        PaginatedFollowingResponse result = followService.getFollowing(username, limit, cursor, currentUserId);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Get pending follow requests for the authenticated user (paginated)
+     * GET /api/v1/follow/my/pending?limit=20&cursor=...
+     *
+     * Returns users who have sent a follow request to the authenticated user
+     * that has not yet been approved or rejected.
+     */
+    @GetMapping("/my/pending")
+    public ResponseEntity<PaginatedFollowersResponse> getMyPendingRequests(
+            @RequestParam(defaultValue = "20")
+            @Min(value = 1, message = "Limit must be at least 1")
+            @Max(value = 50, message = "Limit cannot exceed 50")
+            int limit,
+            @RequestParam(required = false) String cursor) {
+        String currentUserId = getCurrentUserId();
+        PaginatedFollowersResponse result = followService.getPendingFollowRequests(currentUserId, limit, cursor);
         return ResponseEntity.ok(result);
     }
 
@@ -208,7 +227,7 @@ public class FollowController {
             int limit,
             @RequestParam(required = false) String cursor) {
         String currentUserId = getCurrentUserId();
-        PaginatedFollowingResponse result = followService.getFollowingByUserId(currentUserId, limit, cursor);
+        PaginatedFollowingResponse result = followService.getFollowingByUserId(currentUserId, limit, cursor, currentUserId);
         return ResponseEntity.ok(result);
     }
 }

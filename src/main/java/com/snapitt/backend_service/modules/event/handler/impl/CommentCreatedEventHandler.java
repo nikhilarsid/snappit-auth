@@ -4,22 +4,17 @@ import com.snapitt.backend_service.modules.event.handler.EventHandler;
 import com.snapitt.backend_service.modules.event.model.EventEntity;
 import com.snapitt.backend_service.modules.comment.model.CommentEntity;
 import com.snapitt.backend_service.modules.comment.repository.CommentRepository;
+import com.snapitt.backend_service.modules.notification.model.NotificationEntity;
+import com.snapitt.backend_service.modules.notification.model.NotificationType;
+import com.snapitt.backend_service.modules.notification.repository.NotificationRepository;
 import com.snapitt.backend_service.modules.post.model.PostEntity;
 import com.snapitt.backend_service.modules.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import java.time.Instant;
 import java.util.Optional;
 
-/**
- * Handles COMMENT_CREATED event.
- * 
- * When a comment is created:
- * 1. Increment posts.commentCount
- * 2. If replying to another comment, increment parent replyCount
- * 3. Insert notification for the post/comment author
- * 4. Mark event as done
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -27,6 +22,7 @@ public class CommentCreatedEventHandler implements EventHandler {
 
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
+    private final NotificationRepository notificationRepository;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -71,10 +67,19 @@ public class CommentCreatedEventHandler implements EventHandler {
                 }
             }
 
-            // TODO: Insert notification for the post author and parent comment author
-            // - Create notification document with type='comment', commenter_user_id, post_id, post_author_id
-            // - If parent comment exists, also notify parent comment author
-            // - Insert into notifications collection
+            // Create COMMENT notification for post author (skip self-comment)
+            if (!userId.equals(post.getAuthorId())) {
+                NotificationEntity notification = NotificationEntity.builder()
+                        .targetUserId(post.getAuthorId())
+                        .actorId(userId)
+                        .type(NotificationType.COMMENT)
+                        .entityId(postId)
+                        .seen(false)
+                        .createdAt(Instant.now())
+                        .build();
+                notificationRepository.save(notification);
+                log.info("Created COMMENT notification for user {} from user {}", post.getAuthorId(), userId);
+            }
 
             log.info("Successfully recorded comment {} on post {}", commentId, postId);
         } catch (Exception ex) {

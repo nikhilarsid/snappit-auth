@@ -5,6 +5,10 @@ import com.snapitt.backend_service.modules.event.model.EventEntity;
 import com.snapitt.backend_service.modules.feed.repository.PostFeedRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,6 +24,7 @@ import org.springframework.stereotype.Component;
 public class PostDeletedEventHandler implements EventHandler {
 
     private final PostFeedRepository postFeedRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -29,6 +34,12 @@ public class PostDeletedEventHandler implements EventHandler {
         String authorId = (String) event.getPayload().get("authorId");
 
         try {
+            // Decrement post count on the user
+            mongoTemplate.updateFirst(
+                    Query.query(Criteria.where("_id").is(authorId)),
+                    new Update().inc("postCount", -1),
+                    "users"
+            );
             // Remove this post from all users' post_feed
             long deletedCount = postFeedRepository.deleteByPostId(postId);
             log.info("Removed deleted post {} from {} users' feeds", postId, deletedCount);
