@@ -41,4 +41,10 @@ public interface StoryFeedRepository extends MongoRepository<StoryFeedEntity, St
      * @return Number of feed entries deleted
      */
     long deleteByUserIdAndCreatorId(String userId, String creatorId);
+
+    /**
+     * Find a specific story feed entry for a user and creator
+     * Used to check if the viewer has seen a creator's stories
+     */
+    java.util.Optional<StoryFeedEntity> findByUserIdAndCreatorIdAndIsDeletedFalse(String userId, String creatorId);
 }

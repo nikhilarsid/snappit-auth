@@ -172,4 +172,17 @@ public class FeedController {
         feedService.markStoryAsRead(storyFeedId, userId);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Mark a story as seen by creator username
+     * Used when viewing stories from profile page (no feedStoryId available)
+     */
+    @PatchMapping("/see/story/by-creator/{creatorUsername}")
+    public ResponseEntity<Void> markStorySeenByCreator(
+            @PathVariable String creatorUsername
+    ) {
+        String userId = getCurrentUserId();
+        feedService.markStoryAsReadByCreator(userId, creatorUsername);
+        return ResponseEntity.ok().build();
+    }
 }

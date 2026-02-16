@@ -28,10 +28,10 @@ public class CommentCreatedEventHandler implements EventHandler {
     public void handle(EventEntity event) throws Exception {
         log.info("Processing COMMENT_CREATED event: {}", event.getAggregateId());
 
-        String commentId = event.getAggregateId();
+        String commentId = (String) event.getPayload().get("commentId");
         String postId = (String) event.getPayload().get("postId");
         String parentCommentId = (String) event.getPayload().get("parentCommentId");
-        String userId = (String) event.getPayload().get("userId");
+        String userId = (String) event.getPayload().get("authorId");
 
         try {
             // Fetch the post and increment commentCount

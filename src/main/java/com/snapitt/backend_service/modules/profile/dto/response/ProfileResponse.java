@@ -19,6 +19,7 @@ public class ProfileResponse {
     private Long postCount;
     private Boolean isFollowing;
     private Boolean hasStory;
+    private Boolean storySeenByViewer;
     private Instant createdAt;
     private Instant updatedAt;
 

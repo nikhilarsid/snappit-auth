@@ -5,6 +5,7 @@ import com.snapitt.backend_service.modules.follow.repository.FollowRepository;
 import com.snapitt.backend_service.modules.profile.dto.request.UpdateProfileRequest;
 import com.snapitt.backend_service.modules.profile.dto.response.ProfileResponse;
 import com.snapitt.backend_service.modules.story.repository.StoryRepository;
+import com.snapitt.backend_service.modules.feed.repository.StoryFeedRepository;
 import com.snapitt.backend_service.modules.user.model.UserEntity;
 import com.snapitt.backend_service.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
     private final StoryRepository storyRepository;
+    private final StoryFeedRepository storyFeedRepository;
 
     // Validation constraints
     private static final int MAX_NAME_LENGTH = 100;
@@ -79,7 +81,7 @@ public class ProfileService {
                 }
             }
 
-            return buildProfileResponse(targetUser, canViewFullProfile, isFollowing);
+            return buildProfileResponse(targetUser, canViewFullProfile, isFollowing, viewerId);
         } catch (AuthException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -112,7 +114,7 @@ public class ProfileService {
             UserEntity user = userRepository.findById(userId)
                     .orElseThrow(() -> new AuthException("User not found", "USER_NOT_FOUND", HttpStatus.NOT_FOUND));
 
-            return buildProfileResponse(user, true, false);
+            return buildProfileResponse(user, true, false, userId);
         } catch (AuthException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -126,7 +128,7 @@ public class ProfileService {
         return userRepository.findAllById(ids);
     }
 
-    private ProfileResponse buildProfileResponse(UserEntity user, boolean canViewFull, boolean isFollowing) {
+    private ProfileResponse buildProfileResponse(UserEntity user, boolean canViewFull, boolean isFollowing, String viewerId) {
         String bio = null;
         String name = null;
         String avatarUrl = null;
@@ -140,6 +142,20 @@ public class ProfileService {
         boolean hasStory = canViewFull && storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(
                 user.getId(), java.time.Instant.now());
 
+        // Check if viewer has seen this user's stories
+        Boolean storySeenByViewer = null;
+        if (hasStory && viewerId != null) {
+            if (viewerId.equals(user.getId())) {
+                // Own profile — always show grey ring
+                storySeenByViewer = true;
+            } else {
+                storySeenByViewer = storyFeedRepository
+                        .findByUserIdAndCreatorIdAndIsDeletedFalse(viewerId, user.getId())
+                        .map(feed -> Boolean.TRUE.equals(feed.getSeen()))
+                        .orElse(false);
+            }
+        }
+
         ProfileResponse response = new ProfileResponse(
                 user.getUsername(),
                 avatarUrl,
@@ -152,6 +168,7 @@ public class ProfileService {
                 user.getCreatedAt()
         );
         response.setName(name);
+        response.setStorySeenByViewer(storySeenByViewer);
         return response;
     }
 

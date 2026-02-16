@@ -305,4 +305,30 @@ public class FeedService {
             throw new AuthException("An error occurred while updating story status", "INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Mark a story as seen by creator username
+     * Looks up the story_feed record for this viewer+creator and sets seen=true
+     */
+    public void markStoryAsReadByCreator(String viewerId, String creatorUsername) {
+        try {
+            var creatorUser = profileService.getUserByUsername(creatorUsername);
+            if (creatorUser == null) {
+                logger.debug("Creator user not found: {}", creatorUsername);
+                return; // Silently ignore — don't fail if creator doesn't exist
+            }
+
+            var feedOpt = storyFeedRepository.findByUserIdAndCreatorIdAndIsDeletedFalse(viewerId, creatorUser.getId());
+            feedOpt.ifPresent(feed -> {
+                if (!Boolean.TRUE.equals(feed.getSeen())) {
+                    feed.setSeen(true);
+                    storyFeedRepository.save(feed);
+                    logger.debug("Marked story from {} as seen for user {}", creatorUsername, viewerId);
+                }
+            });
+        } catch (Exception ex) {
+            logger.error("Error marking story as read by creator: {} for user: {}", creatorUsername, viewerId, ex);
+            // Don't throw — this is a best-effort operation
+        }
+    }
 }
