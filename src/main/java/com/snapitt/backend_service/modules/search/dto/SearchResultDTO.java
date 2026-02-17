@@ -18,4 +18,5 @@ public class SearchResultDTO {
     private Long followersCount;
     private Long followingCount;
     private Boolean isFollowing;
+    private String viewerFollowStatus;
 }

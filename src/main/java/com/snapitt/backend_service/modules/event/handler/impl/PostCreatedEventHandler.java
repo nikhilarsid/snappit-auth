@@ -53,6 +53,17 @@ public class PostCreatedEventHandler implements EventHandler {
             log.debug("Found {} approved followers for author {}", followers.size(), authorId);
 
             List<PostFeedEntity> feedEntries = new ArrayList<>();
+
+            // Add to author's own feed
+            feedEntries.add(PostFeedEntity.builder()
+                    .userId(authorId)
+                    .postId(postId)
+                    .authorId(authorId)
+                    .createdAt(createdAt)
+                    .seen(true)
+                    .insertedAt(Instant.now())
+                    .build());
+
             for (var follower : followers) {
                 PostFeedEntity feedEntry = PostFeedEntity.builder()
                         .userId(follower.getFollowerId())
@@ -65,12 +76,8 @@ public class PostCreatedEventHandler implements EventHandler {
                 feedEntries.add(feedEntry);
             }
 
-            if (!feedEntries.isEmpty()) {
-                postFeedRepository.saveAll(feedEntries);
-                log.info("Distributed post {} to {} followers", postId, feedEntries.size());
-            } else {
-                log.info("Post {} has no followers, skipping feed distribution", postId);
-            }
+            postFeedRepository.saveAll(feedEntries);
+            log.info("Distributed post {} to author + {} followers", postId, followers.size());
         } catch (Exception ex) {
             log.error("Error processing POST_CREATED event for post {}", postId, ex);
             throw ex;

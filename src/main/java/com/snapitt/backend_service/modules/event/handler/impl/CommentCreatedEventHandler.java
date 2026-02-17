@@ -7,6 +7,8 @@ import com.snapitt.backend_service.modules.comment.repository.CommentRepository;
 import com.snapitt.backend_service.modules.notification.model.NotificationEntity;
 import com.snapitt.backend_service.modules.notification.model.NotificationType;
 import com.snapitt.backend_service.modules.notification.repository.NotificationRepository;
+import com.snapitt.backend_service.modules.notification.websocket.NotificationWebSocketHandler;
+import com.snapitt.backend_service.modules.notification.websocket.WebSocketNotificationPayload;
 import com.snapitt.backend_service.modules.post.model.PostEntity;
 import com.snapitt.backend_service.modules.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class CommentCreatedEventHandler implements EventHandler {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final NotificationRepository notificationRepository;
+    private final NotificationWebSocketHandler webSocketHandler;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -76,6 +79,16 @@ public class CommentCreatedEventHandler implements EventHandler {
                         .createdAt(Instant.now())
                         .build();
                 notificationRepository.save(notification);
+
+                webSocketHandler.sendToUser(post.getAuthorId(), WebSocketNotificationPayload.builder()
+                        .action("NEW")
+                        .notificationId(notification.getId())
+                        .type(NotificationType.COMMENT)
+                        .actorId(userId)
+                        .entityId(postId)
+                        .createdAt(notification.getCreatedAt())
+                        .build());
+
                 log.info("Created COMMENT notification for user {} from user {}", post.getAuthorId(), userId);
             }
 

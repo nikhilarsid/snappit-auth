@@ -7,6 +7,8 @@ import com.snapitt.backend_service.modules.feed.repository.PostFeedRepository;
 import com.snapitt.backend_service.modules.notification.model.NotificationEntity;
 import com.snapitt.backend_service.modules.notification.model.NotificationType;
 import com.snapitt.backend_service.modules.notification.repository.NotificationRepository;
+import com.snapitt.backend_service.modules.notification.websocket.NotificationWebSocketHandler;
+import com.snapitt.backend_service.modules.notification.websocket.WebSocketNotificationPayload;
 import com.snapitt.backend_service.modules.post.model.PostEntity;
 import com.snapitt.backend_service.modules.post.repository.PostRepository;
 import com.snapitt.backend_service.modules.story.repository.StoryRepository;
@@ -20,6 +22,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +39,7 @@ public class FollowAcceptedEventHandler implements EventHandler {
     private final NotificationRepository notificationRepository;
     private final StoryRepository storyRepository;
     private final MongoTemplate mongoTemplate;
+    private final NotificationWebSocketHandler webSocketHandler;
 
     @Override
     public void handle(EventEntity event) throws Exception {
@@ -75,12 +79,15 @@ public class FollowAcceptedEventHandler implements EventHandler {
                 log.warn("Following user {} not found", followingId);
             }
 
-            List<PostEntity> recentPosts = postRepository.findByAuthorIdOrderByCreatedAtDesc(
+            // Only fan out the most recent 3 posts that are no older than 3 days
+            Instant threeDaysAgo = Instant.now().minus(Duration.ofDays(3));
+            List<PostEntity> recentPosts = postRepository.findByAuthorIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
                     followingId,
-                    PageRequest.of(0, 10)  
+                    threeDaysAgo,
+                    PageRequest.of(0, 3)
             );
 
-            log.debug("Found {} recent posts from user {}", recentPosts.size(), followingId);
+            log.debug("Found {} recent posts (within 3 days) from user {}", recentPosts.size(), followingId);
 
             List<PostFeedEntity> feedEntries = new ArrayList<>();
             for (PostEntity post : recentPosts) {
@@ -109,6 +116,16 @@ public class FollowAcceptedEventHandler implements EventHandler {
                     .createdAt(Instant.now())
                     .build();
             notificationRepository.save(notification);
+
+            webSocketHandler.sendToUser(followerId, WebSocketNotificationPayload.builder()
+                    .action("NEW")
+                    .notificationId(notification.getId())
+                    .type(NotificationType.FOLLOW_ACCEPTED)
+                    .actorId(followingId)
+                    .entityId(followingId)
+                    .createdAt(notification.getCreatedAt())
+                    .build());
+
             log.info("Created FOLLOW_ACCEPTED notification for user {} from user {}", followerId, followingId);
 
             boolean hasActiveStories = storyRepository.existsByAuthorIdAndIsDeletedFalseAndExpiresAtGreaterThan(

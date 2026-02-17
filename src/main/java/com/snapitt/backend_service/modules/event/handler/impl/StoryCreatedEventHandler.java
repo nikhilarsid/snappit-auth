@@ -40,6 +40,17 @@ public class StoryCreatedEventHandler implements EventHandler {
 
             log.debug("Found {} approved followers for author {}", followers.size(), authorId);
 
+            // Add to author's own story feed
+            mongoTemplate.upsert(
+                    Query.query(Criteria.where("userId").is(authorId)
+                            .and("creatorId").is(authorId)),
+                    new Update()
+                            .set("latestStoryAt", createdAt)
+                            .set("seen", true)
+                            .set("isDeleted", false),
+                    "story_feed"
+            );
+
             int upsertCount = 0;
             for (var follower : followers) {
                 mongoTemplate.upsert(
@@ -54,11 +65,7 @@ public class StoryCreatedEventHandler implements EventHandler {
                 upsertCount++;
             }
 
-            if (upsertCount > 0) {
-                log.info("Distributed story {} to {} followers (upsert)", storyId, upsertCount);
-            } else {
-                log.info("Story {} has no followers, skipping feed distribution", storyId);
-            }
+            log.info("Distributed story {} to author + {} followers", storyId, upsertCount);
         } catch (Exception ex) {
             log.error("Error processing STORY_CREATED event for story {}", storyId, ex);
             throw ex;

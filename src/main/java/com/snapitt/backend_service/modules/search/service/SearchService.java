@@ -47,11 +47,19 @@ public class SearchService {
 
     private SearchResultDTO mapToSearchResult(UserEntity user, String viewerId) {
         boolean isFollowing = false;
+        String viewerFollowStatus = "none";
         if (viewerId != null && !viewerId.equals(user.getId())) {
             try {
                 var relOpt = followRepository.findByFollowerIdAndFollowingId(viewerId, user.getId());
-                isFollowing = relOpt.isPresent()
-                        && FollowStatus.approved.equals(relOpt.get().getStatus());
+                if (relOpt.isPresent()) {
+                    var rel = relOpt.get();
+                    if (FollowStatus.approved.equals(rel.getStatus())) {
+                        isFollowing = true;
+                        viewerFollowStatus = "approved";
+                    } else if (FollowStatus.pending.equals(rel.getStatus())) {
+                        viewerFollowStatus = "pending";
+                    }
+                }
             } catch (Exception e) {
                 log.warn("Error checking follow status for {} -> {}", viewerId, user.getId());
             }
@@ -67,6 +75,7 @@ public class SearchService {
                 .followersCount(user.getFollowersCount())
                 .followingCount(user.getFollowingCount())
                 .isFollowing(isFollowing)
+                .viewerFollowStatus(viewerFollowStatus)
                 .build();
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,4 +15,6 @@ public interface PostRepository extends MongoRepository<PostEntity, String> {
     List<PostEntity> findByAuthorIdOrderByCreatedAtDesc(String authorId, Pageable pageable);
 
     List<PostEntity> findByAuthorIdAndIdLessThanOrderByCreatedAtDesc(String authorId, String cursorId, Pageable pageable);
+
+    List<PostEntity> findByAuthorIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(String authorId, Instant cutoff, Pageable pageable);
 }
