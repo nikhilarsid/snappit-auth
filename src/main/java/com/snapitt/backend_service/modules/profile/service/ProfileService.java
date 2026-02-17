@@ -162,7 +162,20 @@ public class ProfileService {
                 user.getProfile().setBio(update.getBio());
             }
             if (update.getAvatarUrl() != null && !update.getAvatarUrl().isBlank()) {
-                user.getProfile().setAvatarUrl(update.getAvatarUrl());
+                String url = update.getAvatarUrl().trim();
+                // Allow internal uploads (/uploads/...) and valid http(s) URLs only
+                if (!url.startsWith("/uploads/")) {
+                    try {
+                        java.net.URI uri = new java.net.URI(url);
+                        String scheme = uri.getScheme();
+                        if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) {
+                            throw new AuthException("Avatar URL must use http or https", "INVALID_URL", HttpStatus.BAD_REQUEST);
+                        }
+                    } catch (java.net.URISyntaxException e) {
+                        throw new AuthException("Invalid avatar URL format", "INVALID_URL", HttpStatus.BAD_REQUEST);
+                    }
+                }
+                user.getProfile().setAvatarUrl(url);
             }
 
             user.setUpdatedAt(Instant.now());

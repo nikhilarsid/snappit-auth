@@ -18,4 +18,8 @@ public interface NotificationRepository extends MongoRepository<NotificationEnti
             String targetUserId, String cursor, Pageable pageable);
 
     void deleteByTargetUserIdAndActorIdAndType(String targetUserId, String actorId, NotificationType type);
+
+    long countByTargetUserIdAndSeen(String targetUserId, Boolean seen);
+
+    List<NotificationEntity> findByTargetUserIdAndSeen(String targetUserId, Boolean seen);
 }

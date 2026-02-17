@@ -82,11 +82,26 @@ public class NotificationService {
         String avatarUrl = actor.getProfile() != null ? actor.getProfile().getAvatarUrl() : null;
 
         Boolean viewerFollowingActor = null;
+        String viewerFollowStatus = null;
         if (notification.getType() == com.snapitt.backend_service.modules.notification.model.NotificationType.FOLLOW
                 || notification.getType() == com.snapitt.backend_service.modules.notification.model.NotificationType.FOLLOW_ACCEPTED) {
-            viewerFollowingActor = followRepository.findByFollowerIdAndFollowingId(viewerId, actor.getId())
-                    .map(f -> f.getStatus() == FollowStatus.approved)
-                    .orElse(false);
+            var relOpt = followRepository.findByFollowerIdAndFollowingId(viewerId, actor.getId());
+            if (relOpt.isPresent()) {
+                var rel = relOpt.get();
+                if (rel.getStatus() == FollowStatus.approved) {
+                    viewerFollowingActor = true;
+                    viewerFollowStatus = "approved";
+                } else if (rel.getStatus() == FollowStatus.pending) {
+                    viewerFollowingActor = false;
+                    viewerFollowStatus = "pending";
+                } else {
+                    viewerFollowingActor = false;
+                    viewerFollowStatus = "none";
+                }
+            } else {
+                viewerFollowingActor = false;
+                viewerFollowStatus = "none";
+            }
         }
 
         return NotificationDto.builder()
@@ -98,6 +113,19 @@ public class NotificationService {
                 .seen(notification.getSeen())
                 .createdAt(notification.getCreatedAt())
                 .viewerFollowingActor(viewerFollowingActor)
+                .viewerFollowStatus(viewerFollowStatus)
                 .build();
+    }
+
+    public long getUnseenCount(String userId) {
+        return notificationRepository.countByTargetUserIdAndSeen(userId, false);
+    }
+
+    public void markAllAsSeen(String userId) {
+        List<NotificationEntity> unseen = notificationRepository.findByTargetUserIdAndSeen(userId, false);
+        if (!unseen.isEmpty()) {
+            unseen.forEach(n -> n.setSeen(true));
+            notificationRepository.saveAll(unseen);
+        }
     }
 }

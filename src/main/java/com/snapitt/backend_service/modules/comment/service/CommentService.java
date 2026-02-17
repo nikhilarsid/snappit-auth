@@ -74,7 +74,7 @@ public class CommentService {
             }
 
             int pageSize = Math.max(1, Math.min(limit, 50));
-            PageRequest pageRequest = PageRequest.of(0, pageSize);
+            PageRequest pageRequest = PageRequest.of(0, pageSize + 1);
 
             List<CommentEntity> comments;
             if (cursor == null) {
@@ -83,11 +83,16 @@ public class CommentService {
                 comments = commentRepository.findByPostIdAndParentCommentIdNullAndIsDeletedFalseAndIdLessThanOrderByCreatedAtDesc(postId, cursor, pageRequest);
             }
 
+            boolean hasMore = comments.size() > pageSize;
+            if (hasMore) {
+                comments = comments.subList(0, pageSize);
+            }
+
             List<CommentResponse> data = comments.stream()
                     .map(comment -> mapToResponse(comment, post, viewerId))
                     .collect(Collectors.toList());
 
-            String nextCursor = comments.isEmpty() ? null : comments.get(comments.size() - 1).getId();
+            String nextCursor = hasMore && !comments.isEmpty() ? comments.get(comments.size() - 1).getId() : null;
 
             return PaginatedCommentsResponse.builder()
                     .data(data)
@@ -119,7 +124,7 @@ public class CommentService {
             }
 
             int pageSize = Math.max(1, Math.min(limit, 50));
-            PageRequest pageRequest = PageRequest.of(0, pageSize);
+            PageRequest pageRequest = PageRequest.of(0, pageSize + 1);
 
             List<CommentEntity> replies;
             if (cursor == null) {
@@ -128,11 +133,16 @@ public class CommentService {
                 replies = commentRepository.findByParentCommentIdAndIsDeletedFalseAndIdLessThanOrderByCreatedAtDesc(parentCommentId, cursor, pageRequest);
             }
 
+            boolean hasMore = replies.size() > pageSize;
+            if (hasMore) {
+                replies = replies.subList(0, pageSize);
+            }
+
             List<CommentResponse> data = replies.stream()
                     .map(comment -> mapToResponse(comment, post, viewerId))
                     .collect(Collectors.toList());
 
-            String nextCursor = replies.isEmpty() ? null : replies.get(replies.size() - 1).getId();
+            String nextCursor = hasMore && !replies.isEmpty() ? replies.get(replies.size() - 1).getId() : null;
 
             return PaginatedCommentsResponse.builder()
                     .data(data)

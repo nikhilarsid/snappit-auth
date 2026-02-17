@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -213,23 +214,15 @@ public class FollowService {
             
             List<UserEntity> users = followerIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followerIds);
 
-            final Set<String> alsoFollowingSet;
-            if (viewerId != null && !viewerId.isBlank() && !followerIds.isEmpty()) {
-                var rels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followerIds);
-                alsoFollowingSet = rels.stream()
-                        .filter(r -> r.getStatus() == FollowStatus.approved)
-                        .map(FollowEntity::getFollowingId)
-                        .collect(Collectors.toSet());
-            } else {
-                alsoFollowingSet = java.util.Collections.emptySet();
-            }
+            final Map<String, String> viewerStatusMap = buildViewerFollowStatusMap(viewerId, followerIds);
 
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(
-                            u.getUsername(),
-                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
-                            viewerId != null && alsoFollowingSet.contains(u.getId())
-                    ))
+                    .map(u -> FollowItemDto.builder()
+                            .username(u.getUsername())
+                            .avatarUrl(u.getProfile() != null ? u.getProfile().getAvatarUrl() : null)
+                            .alsoFollowing("approved".equals(viewerStatusMap.get(u.getId())))
+                            .viewerFollowStatus(viewerStatusMap.getOrDefault(u.getId(), "none"))
+                            .build())
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
@@ -269,23 +262,15 @@ public class FollowService {
             
             List<UserEntity> users = followingIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followingIds);
 
-            final Set<String> viewerFollowingSet;
-            if (viewerId != null && !viewerId.isBlank() && !followingIds.isEmpty()) {
-                var viewerRels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followingIds);
-                viewerFollowingSet = viewerRels.stream()
-                        .filter(r -> r.getStatus() == FollowStatus.approved)
-                        .map(FollowEntity::getFollowingId)
-                        .collect(Collectors.toSet());
-            } else {
-                viewerFollowingSet = java.util.Collections.emptySet();
-            }
+            final Map<String, String> viewerStatusMap = buildViewerFollowStatusMap(viewerId, followingIds);
 
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(
-                            u.getUsername(),
-                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
-                            viewerId != null && viewerFollowingSet.contains(u.getId())
-                    ))
+                    .map(u -> FollowItemDto.builder()
+                            .username(u.getUsername())
+                            .avatarUrl(u.getProfile() != null ? u.getProfile().getAvatarUrl() : null)
+                            .alsoFollowing("approved".equals(viewerStatusMap.get(u.getId())))
+                            .viewerFollowStatus(viewerStatusMap.getOrDefault(u.getId(), "none"))
+                            .build())
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
@@ -325,23 +310,15 @@ public class FollowService {
 
             List<UserEntity> users = followerIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followerIds);
 
-            final Set<String> alsoFollowingSet;
-            if (viewerId != null && !viewerId.isBlank() && !followerIds.isEmpty()) {
-                var rels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followerIds);
-                alsoFollowingSet = rels.stream()
-                        .filter(r -> r.getStatus() == FollowStatus.approved)
-                        .map(FollowEntity::getFollowingId)
-                        .collect(Collectors.toSet());
-            } else {
-                alsoFollowingSet = java.util.Collections.emptySet();
-            }
+            final Map<String, String> viewerStatusMap = buildViewerFollowStatusMap(viewerId, followerIds);
 
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(
-                            u.getUsername(),
-                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
-                            viewerId != null && alsoFollowingSet.contains(u.getId())
-                    ))
+                    .map(u -> FollowItemDto.builder()
+                            .username(u.getUsername())
+                            .avatarUrl(u.getProfile() != null ? u.getProfile().getAvatarUrl() : null)
+                            .alsoFollowing("approved".equals(viewerStatusMap.get(u.getId())))
+                            .viewerFollowStatus(viewerStatusMap.getOrDefault(u.getId(), "none"))
+                            .build())
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
@@ -376,12 +353,16 @@ public class FollowService {
 
             List<UserEntity> users = followerIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followerIds);
 
+            // Check if the current user already follows each requester
+            final Map<String, String> viewerStatusMap = buildViewerFollowStatusMap(userId, followerIds);
+
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(
-                            u.getUsername(),
-                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
-                            false  
-                    ))
+                    .map(u -> FollowItemDto.builder()
+                            .username(u.getUsername())
+                            .avatarUrl(u.getProfile() != null ? u.getProfile().getAvatarUrl() : null)
+                            .alsoFollowing("approved".equals(viewerStatusMap.get(u.getId())))
+                            .viewerFollowStatus(viewerStatusMap.getOrDefault(u.getId(), "none"))
+                            .build())
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
@@ -421,23 +402,15 @@ public class FollowService {
 
             List<UserEntity> users = followingIds.isEmpty() ? java.util.Collections.emptyList() : profileService.getUsersByIds(followingIds);
 
-            final Set<String> viewerFollowingSet;
-            if (viewerId != null && !viewerId.isBlank() && !followingIds.isEmpty()) {
-                var viewerRels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, followingIds);
-                viewerFollowingSet = viewerRels.stream()
-                        .filter(r -> r.getStatus() == FollowStatus.approved)
-                        .map(FollowEntity::getFollowingId)
-                        .collect(Collectors.toSet());
-            } else {
-                viewerFollowingSet = java.util.Collections.emptySet();
-            }
+            final Map<String, String> viewerStatusMap = buildViewerFollowStatusMap(viewerId, followingIds);
 
             List<FollowItemDto> data = users.stream()
-                    .map(u -> new FollowItemDto(
-                            u.getUsername(),
-                            u.getProfile() != null ? u.getProfile().getAvatarUrl() : null,
-                            viewerId != null && viewerFollowingSet.contains(u.getId())
-                    ))
+                    .map(u -> FollowItemDto.builder()
+                            .username(u.getUsername())
+                            .avatarUrl(u.getProfile() != null ? u.getProfile().getAvatarUrl() : null)
+                            .alsoFollowing("approved".equals(viewerStatusMap.get(u.getId())))
+                            .viewerFollowStatus(viewerStatusMap.getOrDefault(u.getId(), "none"))
+                            .build())
                     .collect(Collectors.toList());
 
             String nextCursor = relations.isEmpty() ? null : relations.get(relations.size() - 1).getId();
@@ -452,5 +425,25 @@ public class FollowService {
             logger.error("Error retrieving following for userId: {}", userId, ex);
             throw new AuthException("An error occurred while retrieving following", "INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Build a map of targetUserId -> follow status ("approved", "pending", or absent)
+     * for the viewer's follow relationships to the given user IDs.
+     */
+    private Map<String, String> buildViewerFollowStatusMap(String viewerId, List<String> targetUserIds) {
+        if (viewerId == null || viewerId.isBlank() || targetUserIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        var rels = followRepository.findByFollowerIdAndFollowingIdIn(viewerId, targetUserIds);
+        Map<String, String> statusMap = new HashMap<>();
+        for (FollowEntity rel : rels) {
+            if (rel.getStatus() == FollowStatus.approved) {
+                statusMap.put(rel.getFollowingId(), "approved");
+            } else if (rel.getStatus() == FollowStatus.pending) {
+                statusMap.put(rel.getFollowingId(), "pending");
+            }
+        }
+        return statusMap;
     }
 }

@@ -19,4 +19,5 @@ public class NotificationDto {
     private Boolean seen;
     private Instant createdAt;
     private Boolean viewerFollowingActor;
+    private String viewerFollowStatus;
 }

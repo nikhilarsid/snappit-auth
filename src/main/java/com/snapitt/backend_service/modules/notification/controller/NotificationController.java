@@ -56,4 +56,18 @@ public class NotificationController {
         PaginatedNotificationsResponse response = notificationService.getNotifications(userId, limit, cursor);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/unseen-count")
+    public ResponseEntity<java.util.Map<String, Long>> getUnseenCount() {
+        String userId = getCurrentUserId();
+        long count = notificationService.getUnseenCount(userId);
+        return ResponseEntity.ok(java.util.Map.of("count", count));
+    }
+
+    @PostMapping("/mark-seen")
+    public ResponseEntity<java.util.Map<String, String>> markAllSeen() {
+        String userId = getCurrentUserId();
+        notificationService.markAllAsSeen(userId);
+        return ResponseEntity.ok(java.util.Map.of("status", "ok"));
+    }
 }
