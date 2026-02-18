@@ -38,6 +38,12 @@ dependencies {
 	implementation 'com.google.api-client:google-api-client:2.2.0'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 	implementation 'org.springdoc:springdoc-openapi-starter-common:2.3.0'
+
+	// AWS S3 SDK for CDC event archival
+	implementation platform('software.amazon.awssdk:bom:2.24.0')
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:sts'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 }

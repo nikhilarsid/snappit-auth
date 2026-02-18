@@ -270,15 +270,17 @@ public class StoryService {
 
     private StoryResponse mapToResponse(StoryEntity story, String viewerId) {
         
-        String authorUsername = userRepository.findById(story.getAuthorId())
-                .map(user -> user.getUsername())
-                .orElse("unknown");
+        var authorUser = userRepository.findById(story.getAuthorId()).orElse(null);
+        String authorUsername = authorUser != null ? authorUser.getUsername() : "unknown";
+        String authorAvatarUrl = (authorUser != null && authorUser.getProfile() != null)
+                ? authorUser.getProfile().getAvatarUrl() : null;
 
         Boolean canDelete = viewerId != null && viewerId.equals(story.getAuthorId());
 
         return StoryResponse.builder()
                 .id(story.getId())
                 .authorUsername(authorUsername)
+                .authorAvatarUrl(authorAvatarUrl)
                 .mediaUrl(story.getMediaUrl())
                 .createdAt(story.getCreatedAt())
                 .expiresAt(story.getExpiresAt())

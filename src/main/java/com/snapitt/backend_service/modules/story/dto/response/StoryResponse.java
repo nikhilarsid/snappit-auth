@@ -16,6 +16,7 @@ import java.time.Instant;
 public class StoryResponse {
     private String id;              
     private String authorUsername;  
+    private String authorAvatarUrl;
     private String mediaUrl;        
     private Instant createdAt;      
     private Instant expiresAt;      

@@ -1,110 +1,195 @@
 package com.snapitt.backend_service.modules.follow.controller;
 
-import com.snapitt.backend_service.modules.follow.service.FollowService;
+import com.snapitt.backend_service.modules.auth.common.exception.AuthException;
+import com.snapitt.backend_service.modules.auth.common.exception.GlobalExceptionHandler;
 import com.snapitt.backend_service.modules.follow.dto.response.PaginatedFollowersResponse;
+import com.snapitt.backend_service.modules.follow.dto.response.PaginatedFollowingResponse;
+import com.snapitt.backend_service.modules.follow.service.FollowService;
 import com.snapitt.backend_service.modules.user.model.UserEntity;
 import com.snapitt.backend_service.security.UserPrincipal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import org.springframework.boot.test.autoconfigure.json.AutoConfigureJsonTesters;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.MockMvcAutoConfiguration;
-import org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration;
-import com.snapitt.backend_service.security.JwtService;
-import com.snapitt.backend_service.modules.user.repository.UserRepository;
-import org.springframework.http.MediaType;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.List;
 
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ImportAutoConfiguration({
-    JacksonAutoConfiguration.class,
-    WebMvcAutoConfiguration.class,
-    MockMvcAutoConfiguration.class,
-    HttpMessageConvertersAutoConfiguration.class
-})
-@SpringBootTest(classes = FollowController.class,
-    webEnvironment = SpringBootTest.WebEnvironment.MOCK,
-    properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration")
-@AutoConfigureMockMvc
-public class FollowControllerTest {
+@ExtendWith(MockitoExtension.class)
+@DisplayName("FollowController Unit Tests")
+class FollowControllerTest {
 
-    @Autowired
+    @Mock private FollowService followService;
+
+    @InjectMocks
+    private FollowController followController;
+
     private MockMvc mockMvc;
 
-    @MockBean
-    private FollowService followService;
-
-    @MockBean
-    private JwtService jwtService;
-
-    @MockBean
-    private UserRepository userRepository;
-
-    private UserPrincipal principal;
-
     @BeforeEach
-    public void setup() {
-        UserEntity user = UserEntity.builder().id("u1").username("testuser").build();
-        principal = new UserPrincipal(user);
-        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(followController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        UserEntity user = UserEntity.builder().id("user-1").username("testuser").build();
+        UserPrincipal principal = new UserPrincipal(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList()));
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         SecurityContextHolder.clearContext();
     }
 
-    @Test
-    public void createFollow_authenticated_returnsOk() throws Exception {
-        doNothing().when(followService).createFollowRequest("u1", "alice");
+    @Nested
+    @DisplayName("POST /api/v1/follow/{username}")
+    class CreateFollowTests {
 
-        mockMvc.perform(post("/api/v1/follow/alice")
-                .principal(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().json("{\"message\":\"FOLLOW_REQUEST_SENT\"}"));
+        @Test
+        @DisplayName("should return 200 with FOLLOW_REQUEST_SENT")
+        void createFollow_success() throws Exception {
+            doNothing().when(followService).createFollowRequest("user-1", "target");
+
+            mockMvc.perform(post("/api/v1/follow/target"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("FOLLOW_REQUEST_SENT"));
+        }
+
+        @Test
+        @DisplayName("should return 409 when already following")
+        void createFollow_alreadyFollowing() throws Exception {
+            doThrow(new AuthException("Already following", "ALREADY_FOLLOWING", HttpStatus.CONFLICT))
+                    .when(followService).createFollowRequest("user-1", "target");
+
+            mockMvc.perform(post("/api/v1/follow/target"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error").value("ALREADY_FOLLOWING"));
+        }
     }
 
-    @Test
-    public void getFollowers_authenticated_returnsData() throws Exception {
-        PaginatedFollowersResponse resp = new PaginatedFollowersResponse(java.util.Collections.emptyList(), null);
-        when(followService.getFollowers("alice", 20, null, "u1")).thenReturn(resp);
+    @Nested
+    @DisplayName("POST /api/v1/follow/{username}/approve")
+    class ApproveFollowTests {
 
-        mockMvc.perform(get("/api/v1/follow/alice/followers?limit=20")
-                .principal(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().json("{\"data\":[],\"nextCursor\":null}"));
+        @Test
+        @DisplayName("should return 200 with FOLLOW_APPROVED")
+        void approveFollow_success() throws Exception {
+            doNothing().when(followService).approveFollow("user-1", "follower");
+
+            mockMvc.perform(post("/api/v1/follow/follower/approve"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("FOLLOW_APPROVED"));
+        }
     }
 
-    @Test
-    public void unfollow_authenticated_returnsOk() throws Exception {
-        doNothing().when(followService).unfollow("u1", "alice");
+    @Nested
+    @DisplayName("POST /api/v1/follow/{username}/reject")
+    class RejectFollowTests {
 
-        mockMvc.perform(delete("/api/v1/follow/alice")
-                .principal(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().json("{\"message\":\"UNFOLLOWED\"}"));
+        @Test
+        @DisplayName("should return 200 with FOLLOW_REJECTED")
+        void rejectFollow_success() throws Exception {
+            doNothing().when(followService).rejectFollow("user-1", "follower");
+
+            mockMvc.perform(post("/api/v1/follow/follower/reject"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("FOLLOW_REJECTED"));
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /api/v1/follow/{username}")
+    class UnfollowTests {
+
+        @Test
+        @DisplayName("should return 200 with UNFOLLOWED")
+        void unfollow_success() throws Exception {
+            when(followService.unfollow("user-1", "target")).thenReturn("UNFOLLOWED");
+
+            mockMvc.perform(delete("/api/v1/follow/target"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("UNFOLLOWED"));
+        }
+
+        @Test
+        @DisplayName("should return FOLLOW_REQUEST_WITHDRAWN for pending")
+        void unfollow_withdrawn() throws Exception {
+            when(followService.unfollow("user-1", "target")).thenReturn("FOLLOW_REQUEST_WITHDRAWN");
+
+            mockMvc.perform(delete("/api/v1/follow/target"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("FOLLOW_REQUEST_WITHDRAWN"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/follow/{username}/followers")
+    class GetFollowersTests {
+
+        @Test
+        @DisplayName("should return 200 with followers list")
+        void getFollowers_success() throws Exception {
+            PaginatedFollowersResponse response = PaginatedFollowersResponse.builder()
+                    .data(List.of()).nextCursor(null).build();
+
+            when(followService.getFollowers("target", 20, null, "user-1")).thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/follow/target/followers"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/follow/{username}/following")
+    class GetFollowingTests {
+
+        @Test
+        @DisplayName("should return 200 with following list")
+        void getFollowing_success() throws Exception {
+            PaginatedFollowingResponse response = PaginatedFollowingResponse.builder()
+                    .data(List.of()).nextCursor(null).build();
+
+            when(followService.getFollowing("target", 20, null, "user-1")).thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/follow/target/following"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/follow/my/pending")
+    class GetMyPendingTests {
+
+        @Test
+        @DisplayName("should return 200 with pending requests")
+        void getMyPending_success() throws Exception {
+            PaginatedFollowersResponse response = PaginatedFollowersResponse.builder()
+                    .data(List.of()).nextCursor(null).build();
+
+            when(followService.getPendingFollowRequests("user-1", 20, null)).thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/follow/my/pending"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isArray());
+        }
     }
 }
